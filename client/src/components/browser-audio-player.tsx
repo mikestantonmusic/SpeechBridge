@@ -180,15 +180,20 @@ export function BrowserAudioPlayer({ englishText, chineseText, settings, duratio
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
       
-      if (isAudio) {
+      if (isWebM) {
         toast({
-          title: "Audio File Downloaded!",
-          description: `${fileExtension.toUpperCase()} file created with precise timing markers for English → pause → Chinese sequence`,
+          title: "Audio File Downloaded (.webm)",
+          description: "Audio recorded! Use VLC Player to open, or try the Play button above for immediate listening with perfect quality.",
+        });
+      } else if (isWav) {
+        toast({
+          title: "Audio File Downloaded (.wav)",
+          description: "High-quality audio file created with English → pause → Chinese sequence",
         });
       } else {
         toast({
-          title: "TTS Instructions Downloaded!",
-          description: "Complete translation file with timing and voice recommendations for TTS software",
+          title: "Instructions Downloaded",
+          description: "Recording wasn't possible. Downloaded detailed guide with timing specifications for manual audio creation.",
         });
       }
       

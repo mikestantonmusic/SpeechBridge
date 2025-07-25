@@ -19,16 +19,16 @@ export class AdvancedAudioGenerator {
   ): Promise<Blob> {
     
     try {
-      // Method 1: Try to use Web Audio API with destination capture
-      return await this.captureWithWebAudio(englishText, chineseText, settings);
+      // Method 1: Try MediaRecorder approach (most likely to work)
+      return await this.captureWithMediaRecorder(englishText, chineseText, settings);
     } catch (error) {
-      console.log('Web Audio capture failed, trying MediaRecorder approach:', error);
+      console.log('MediaRecorder failed, trying Web Audio approach:', error);
       
       try {
-        // Method 2: Try MediaRecorder with user media
-        return await this.captureWithMediaRecorder(englishText, chineseText, settings);
+        // Method 2: Try Web Audio API with destination capture
+        return await this.captureWithWebAudio(englishText, chineseText, settings);
       } catch (error2) {
-        console.log('MediaRecorder failed, creating instructional audio:', error2);
+        console.log('All recording methods failed, creating instruction file:', error2);
         
         // Method 3: Create detailed instruction file with timing
         return this.createDetailedInstructionFile(englishText, chineseText, settings);
@@ -300,4 +300,6 @@ export class AdvancedAudioGenerator {
     
     this.recordedChunks = [];
   }
+
+
 }
