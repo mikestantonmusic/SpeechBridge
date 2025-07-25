@@ -4,7 +4,7 @@ import { Slider } from "@/components/ui/slider";
 import { Play, Pause, Download, Volume2, FileAudio } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { TTSService } from "@/lib/tts-service";
-import { RealAudioGenerator } from "@/lib/real-audio-generator";
+import { SimpleAudioGenerator } from "@/lib/simple-audio-generator";
 
 interface BrowserAudioPlayerProps {
   englishText: string;
@@ -147,18 +147,17 @@ export function BrowserAudioPlayer({ englishText, chineseText, settings, duratio
     
     try {
       toast({
-        title: "Generating Audio File",
-        description: "Creating WAV audio file with precise timing for English → pause → Chinese sequence...",
+        title: "Creating Audio File",
+        description: "Generating downloadable audio with timing markers...",
       });
 
-      // Use the real audio generator to create actual playable WAV files
-      const audioGenerator = new RealAudioGenerator();
-      const audioBlob = await audioGenerator.generatePlayableAudio(
+      // Use simple, reliable audio generation
+      const audioGenerator = new SimpleAudioGenerator();
+      const audioBlob = await audioGenerator.generateAudioFile(
         englishText, 
         chineseText, 
         settings
       );
-      audioGenerator.cleanup();
       
       // Detect the file type and set appropriate extension and filename
       const isWebM = audioBlob.type === 'audio/webm';
