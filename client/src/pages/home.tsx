@@ -14,6 +14,7 @@ export default function Home() {
     pauseDuration: 1.0,
     voiceSpeed: 1.0,
     audioQuality: "high",
+    languageOrder: "english-first",
   });
 
   const { toast } = useToast();

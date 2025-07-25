@@ -4,11 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { VoiceSelector } from "@/components/voice-selector";
 import { Settings } from "lucide-react";
 
-interface AudioSettings {
-  pauseDuration: number;
-  voiceSpeed: number;
-  audioQuality: string;
-}
+import type { AudioSettings } from "@shared/schema";
 
 interface SettingsCardProps {
   settings: AudioSettings;
@@ -37,6 +33,13 @@ export function SettingsCard({ settings, onSettingsChange }: SettingsCardProps) 
     });
   };
 
+  const handleLanguageOrderChange = (value: string) => {
+    onSettingsChange({
+      ...settings,
+      languageOrder: value,
+    });
+  };
+
   return (
     <Card className="bg-white rounded-xl shadow-lg border border-gray-200">
       <CardContent className="p-8">
@@ -45,7 +48,7 @@ export function SettingsCard({ settings, onSettingsChange }: SettingsCardProps) 
           Audio Settings
         </h3>
         
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-6">
           <div>
             <Label className="block text-sm font-medium text-gray-700 mb-2">Pause Duration</Label>
             <Select value={settings.pauseDuration.toString()} onValueChange={handlePauseDurationChange}>
@@ -85,6 +88,19 @@ export function SettingsCard({ settings, onSettingsChange }: SettingsCardProps) 
                 <SelectItem value="standard">Standard</SelectItem>
                 <SelectItem value="high">High</SelectItem>
                 <SelectItem value="premium">Premium</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div>
+            <Label className="block text-sm font-medium text-gray-700 mb-2">Language Order</Label>
+            <Select value={settings.languageOrder} onValueChange={handleLanguageOrderChange}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="english-first">English → Chinese</SelectItem>
+                <SelectItem value="chinese-first">Chinese → English</SelectItem>
               </SelectContent>
             </Select>
           </div>

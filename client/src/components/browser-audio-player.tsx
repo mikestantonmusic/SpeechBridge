@@ -13,6 +13,7 @@ interface BrowserAudioPlayerProps {
     pauseDuration: number;
     voiceSpeed: number;
     audioQuality: string;
+    languageOrder?: string;
   };
   duration?: number;
 }
@@ -20,17 +21,21 @@ interface BrowserAudioPlayerProps {
 export function BrowserAudioPlayer({ englishText, chineseText, settings, duration = 0 }: BrowserAudioPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [currentPhase, setCurrentPhase] = useState<"idle" | "english" | "pause" | "chinese">("idle");
+  const [currentPhase, setCurrentPhase] = useState<"idle" | "first" | "pause" | "second">("idle");
   const [volume, setVolume] = useState(75);
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef(0);
   const { toast } = useToast();
 
-  const englishDuration = englishText.length * 0.08;
+  // Calculate durations based on language order
+  const isChineseFirst = settings.languageOrder === 'chinese-first';
+  const firstText = isChineseFirst ? chineseText : englishText;
+  const secondText = isChineseFirst ? englishText : chineseText;
+  const firstDuration = isChineseFirst ? chineseText.length * 0.12 : englishText.length * 0.08;
+  const secondDuration = isChineseFirst ? englishText.length * 0.08 : chineseText.length * 0.12;
   const pauseDuration = settings.pauseDuration;
-  const chineseDuration = chineseText.length * 0.12;
-  const totalDuration = englishDuration + pauseDuration + chineseDuration;
+  const totalDuration = firstDuration + pauseDuration + secondDuration;
 
   useEffect(() => {
     return () => {
@@ -78,12 +83,12 @@ export function BrowserAudioPlayer({ englishText, chineseText, settings, duratio
         const elapsed = (Date.now() - startTimeRef.current) / 1000;
         setCurrentTime(elapsed);
         
-        if (elapsed <= englishDuration) {
-          setCurrentPhase("english");
-        } else if (elapsed <= englishDuration + pauseDuration) {
+        if (elapsed <= firstDuration) {
+          setCurrentPhase("first");
+        } else if (elapsed <= firstDuration + pauseDuration) {
           setCurrentPhase("pause");
         } else if (elapsed <= totalDuration) {
-          setCurrentPhase("chinese");
+          setCurrentPhase("second");
         } else {
           setCurrentPhase("idle");
           setIsPlaying(false);
@@ -92,17 +97,19 @@ export function BrowserAudioPlayer({ englishText, chineseText, settings, duratio
         }
       }, 100);
 
-      // Play English
-      setCurrentPhase("english");
-      await speakText(englishText, 'en-US', settings.voiceSpeed);
+      // Play first language
+      setCurrentPhase("first");
+      const firstLang = isChineseFirst ? 'zh-CN' : 'en-US';
+      await speakText(firstText, firstLang, settings.voiceSpeed);
       
       // Pause
       setCurrentPhase("pause");
       await new Promise(resolve => setTimeout(resolve, pauseDuration * 1000));
       
-      // Play Chinese
-      setCurrentPhase("chinese");
-      await speakText(chineseText, 'zh-CN', settings.voiceSpeed);
+      // Play second language
+      setCurrentPhase("second");
+      const secondLang = isChineseFirst ? 'en-US' : 'zh-CN';
+      await speakText(secondText, secondLang, settings.voiceSpeed);
       
       // Finished
       setCurrentPhase("idle");
@@ -214,10 +221,14 @@ export function BrowserAudioPlayer({ englishText, chineseText, settings, duratio
 
   const getPhaseDescription = () => {
     switch (currentPhase) {
-      case "english": return "Speaking English...";
-      case "pause": return "Pause...";
-      case "chinese": return "Speaking Chinese...";
-      default: return "Ready to play";
+      case "first": 
+        return isChineseFirst ? "Speaking Chinese..." : "Speaking English...";
+      case "pause": 
+        return "Pause...";
+      case "second": 
+        return isChineseFirst ? "Speaking English..." : "Speaking Chinese...";
+      default: 
+        return "Ready to play";
     }
   };
 
@@ -292,9 +303,9 @@ export function BrowserAudioPlayer({ englishText, chineseText, settings, duratio
 
       {totalDuration > 0 && (
         <div className="mt-4 text-xs text-gray-500 dark:text-gray-400 flex justify-between">
-          <span>English: 0:00-{Math.ceil(englishDuration)}s</span>
-          <span>Pause: {Math.ceil(englishDuration)}s-{Math.ceil(englishDuration + pauseDuration)}s</span>
-          <span>Chinese: {Math.ceil(englishDuration + pauseDuration)}s-{Math.ceil(totalDuration)}s</span>
+          <span>{isChineseFirst ? 'Chinese' : 'English'}: 0:00-{Math.ceil(firstDuration)}s</span>
+          <span>Pause: {Math.ceil(firstDuration)}s-{Math.ceil(firstDuration + pauseDuration)}s</span>
+          <span>{isChineseFirst ? 'English' : 'Chinese'}: {Math.ceil(firstDuration + pauseDuration)}s-{Math.ceil(totalDuration)}s</span>
         </div>
       )}
     </div>

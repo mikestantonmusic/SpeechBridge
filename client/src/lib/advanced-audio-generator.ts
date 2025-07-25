@@ -17,6 +17,7 @@ export class AdvancedAudioGenerator {
     settings: {
       pauseDuration: number;
       voiceSpeed: number;
+      languageOrder?: string;
       selectedVoice?: string;
     },
     preferredFormat: 'webm' | 'wav' | 'mp3' = 'wav'
@@ -217,6 +218,7 @@ export class AdvancedAudioGenerator {
     settings: {
       pauseDuration: number;
       voiceSpeed: number;
+      languageOrder?: string;
       selectedVoice?: string;
     }
   ): Promise<void> {
@@ -230,76 +232,103 @@ export class AdvancedAudioGenerator {
       const synth = window.speechSynthesis;
       let currentStep = 0;
 
+      // Determine order based on settings
+      const isChineseFirst = settings.languageOrder === 'chinese-first';
+      const firstText = isChineseFirst ? chineseText : englishText;
+      const firstLang = isChineseFirst ? 'zh-CN' : 'en-US';
+      const secondText = isChineseFirst ? englishText : chineseText;
+      const secondLang = isChineseFirst ? 'en-US' : 'zh-CN';
+
       const nextStep = () => {
         currentStep++;
         
         if (currentStep === 1) {
-          // Step 1: Speak English
-          const englishUtterance = new SpeechSynthesisUtterance(englishText);
-          englishUtterance.rate = settings.voiceSpeed;
-          englishUtterance.lang = 'en-US';
-          englishUtterance.volume = 1.0; // Maximum volume for recording
+          // Step 1: Speak first language
+          const firstUtterance = new SpeechSynthesisUtterance(firstText);
+          firstUtterance.rate = settings.voiceSpeed;
+          firstUtterance.lang = firstLang;
+          firstUtterance.volume = 1.0;
           
-          // Try to use a high-quality English voice
+          // Select appropriate voice for first language
           const voices = synth.getVoices();
-          const englishVoice = voices.find(voice => 
-            voice.lang.includes('en-US') && 
-            (voice.name.includes('Microsoft') || voice.name.includes('Google') || voice.name.includes('Natural'))
-          ) || voices.find(voice => voice.lang.includes('en-US'));
+          let selectedVoice;
           
-          if (englishVoice) {
-            englishUtterance.voice = englishVoice;
-            console.log('Using English voice for recording:', englishVoice.name, englishVoice.lang);
+          if (isChineseFirst) {
+            // Chinese first - use Xiaoxiao voice
+            selectedVoice = voices.find(voice => 
+              voice.name.includes('Xiaoxiao') && voice.name.includes('Microsoft')
+            ) || voices.find(voice => 
+              voice.lang.includes('zh') && voice.name.includes('Microsoft')
+            ) || voices.find(voice => voice.lang.includes('zh-CN'));
+            
+            if (selectedVoice) {
+              console.log('Using Chinese voice for recording:', selectedVoice.name, selectedVoice.lang);
+            }
+          } else {
+            // English first - use high-quality English voice
+            selectedVoice = voices.find(voice => 
+              voice.lang.includes('en-US') && 
+              (voice.name.includes('Microsoft') || voice.name.includes('Google') || voice.name.includes('Natural'))
+            ) || voices.find(voice => voice.lang.includes('en-US'));
+            
+            if (selectedVoice) {
+              console.log('Using English voice for recording:', selectedVoice.name, selectedVoice.lang);
+            }
           }
           
-          englishUtterance.onend = () => {
+          if (selectedVoice) {
+            firstUtterance.voice = selectedVoice;
+          }
+          
+          firstUtterance.onend = () => {
             // Step 2: Pause
             setTimeout(nextStep, settings.pauseDuration * 1000);
           };
           
-          englishUtterance.onerror = () => reject(new Error('English speech synthesis failed'));
-          synth.speak(englishUtterance);
+          firstUtterance.onerror = () => reject(new Error(`${isChineseFirst ? 'Chinese' : 'English'} speech synthesis failed`));
+          synth.speak(firstUtterance);
           
         } else if (currentStep === 2) {
-          // Step 3: Speak Chinese
-          const chineseUtterance = new SpeechSynthesisUtterance(chineseText);
-          chineseUtterance.rate = settings.voiceSpeed;
-          chineseUtterance.lang = 'zh-CN';
+          // Step 3: Speak second language
+          const secondUtterance = new SpeechSynthesisUtterance(secondText);
+          secondUtterance.rate = settings.voiceSpeed;
+          secondUtterance.lang = secondLang;
+          secondUtterance.volume = 1.0;
           
-          // Use the exact same voice selection logic as the interface
+          // Select appropriate voice for second language
           const voices = synth.getVoices();
-          console.log('Available voices for recording:', voices.map(v => `${v.name} (${v.lang})`));
+          let selectedVoice;
           
-          // First priority: Microsoft Xiaoxiao Online (Natural)
-          let chineseVoice = voices.find(voice => 
-            voice.name.includes('Xiaoxiao') && voice.name.includes('Microsoft')
-          );
-          
-          // Second priority: Any Microsoft Chinese voice
-          if (!chineseVoice) {
-            chineseVoice = voices.find(voice => 
+          if (!isChineseFirst) {
+            // English was first, now Chinese
+            selectedVoice = voices.find(voice => 
+              voice.name.includes('Xiaoxiao') && voice.name.includes('Microsoft')
+            ) || voices.find(voice => 
               voice.lang.includes('zh') && voice.name.includes('Microsoft')
-            );
-          }
-          
-          // Third priority: Any Chinese voice
-          if (!chineseVoice) {
-            chineseVoice = voices.find(voice => voice.lang.includes('zh-CN'));
-          }
-          
-          if (chineseVoice) {
-            chineseUtterance.voice = chineseVoice;
-            console.log('Using voice for recording:', chineseVoice.name, chineseVoice.lang);
+            ) || voices.find(voice => voice.lang.includes('zh-CN'));
+            
+            if (selectedVoice) {
+              console.log('Using Chinese voice for recording:', selectedVoice.name, selectedVoice.lang);
+            }
           } else {
-            console.log('No Chinese voice found for recording');
+            // Chinese was first, now English
+            selectedVoice = voices.find(voice => 
+              voice.lang.includes('en-US') && 
+              (voice.name.includes('Microsoft') || voice.name.includes('Google') || voice.name.includes('Natural'))
+            ) || voices.find(voice => voice.lang.includes('en-US'));
+            
+            if (selectedVoice) {
+              console.log('Using English voice for recording:', selectedVoice.name, selectedVoice.lang);
+            }
           }
           
-          // Increase volume for better recording
-          chineseUtterance.volume = 1.0;
+          if (selectedVoice) {
+            secondUtterance.voice = selectedVoice;
+          }
           
-          chineseUtterance.onend = () => resolve();
-          chineseUtterance.onerror = () => reject(new Error('Chinese speech synthesis failed'));
-          synth.speak(chineseUtterance);
+          secondUtterance.onend = () => resolve();
+          secondUtterance.onerror = () => reject(new Error(`${isChineseFirst ? 'English' : 'Chinese'} speech synthesis failed`));
+          synth.speak(secondUtterance);
         }
       };
 

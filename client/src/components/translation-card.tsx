@@ -27,6 +27,7 @@ interface AudioSettings {
   pauseDuration: number;
   voiceSpeed: number;
   audioQuality: string;
+  languageOrder?: string;
 }
 
 interface TranslationCardProps {

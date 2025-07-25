@@ -23,6 +23,7 @@ export const audioSettings = pgTable("audio_settings", {
   pauseDuration: real("pause_duration").default(1.0).notNull(),
   voiceSpeed: real("voice_speed").default(1.0).notNull(),
   audioQuality: text("audio_quality").default("high").notNull(),
+  languageOrder: text("language_order").default("english-first").notNull(), // "english-first" or "chinese-first"
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
@@ -41,6 +42,7 @@ export const insertAudioSettingsSchema = createInsertSchema(audioSettings).pick(
   pauseDuration: true,
   voiceSpeed: true,
   audioQuality: true,
+  languageOrder: true,
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
