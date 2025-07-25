@@ -15,12 +15,12 @@ export class RealAudioGenerator {
     this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
     
     try {
-      // Method 1: Try to create audio with speech synthesis directly connected to audio context
-      return await this.createAudioWithSpeechSynthesis(englishText, chineseText, settings);
-    } catch (error) {
-      console.log('Direct speech synthesis failed, creating timed silent audio with embedded text');
-      // Method 2: Create a WAV file with embedded metadata and proper timing
+      // Create a WAV file with proper timing and embedded metadata
       return await this.createTimedAudioWithMetadata(englishText, chineseText, settings);
+    } catch (error) {
+      console.error('Audio generation failed:', error);
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      throw new Error(`Failed to generate audio: ${message}`);
     }
   }
 
@@ -83,38 +83,57 @@ export class RealAudioGenerator {
     }
   ): Promise<Blob> {
     
-    if (!this.audioContext) throw new Error('Audio context not initialized');
+    if (!this.audioContext) {
+      throw new Error('Audio context not initialized');
+    }
     
     // Create a properly timed audio file that matches the TTS sequence exactly
     const englishDuration = this.calculateSpeechDuration(englishText, settings.voiceSpeed);
     const chineseDuration = this.calculateSpeechDuration(chineseText, settings.voiceSpeed);
-    const totalDuration = englishDuration + settings.pauseDuration + chineseDuration;
+    const totalDuration = englishDuration + settings.pauseDuration + chineseDuration + 1; // Add 1 second buffer
     
     const sampleRate = this.audioContext.sampleRate;
     const numSamples = Math.ceil(totalDuration * sampleRate);
     
-    // Create audio buffer with subtle audio cues
+    // Ensure we have valid samples
+    if (numSamples <= 0 || !isFinite(numSamples)) {
+      throw new Error('Invalid audio duration calculated');
+    }
+    
+    // Create audio buffer
     const audioBuffer = this.audioContext.createBuffer(2, numSamples, sampleRate);
     const leftChannel = audioBuffer.getChannelData(0);
     const rightChannel = audioBuffer.getChannelData(1);
     
-    // Add very quiet timing beeps to mark sections
+    // Initialize with silence
+    for (let i = 0; i < numSamples; i++) {
+      leftChannel[i] = 0;
+      rightChannel[i] = 0;
+    }
+    
+    // Add gentle timing markers
     let currentSample = 0;
     
-    // Start beep for English
-    currentSample = this.addQuietBeep(leftChannel, rightChannel, currentSample, sampleRate, 800, 0.1, 0.01);
+    // Start marker for English (very soft)
+    if (currentSample < numSamples) {
+      currentSample = this.addQuietBeep(leftChannel, rightChannel, currentSample, sampleRate, 800, 0.1, 0.005);
+    }
     
     // Skip to pause
-    currentSample = Math.floor(englishDuration * sampleRate);
+    currentSample = Math.min(Math.floor(englishDuration * sampleRate), numSamples - 1000);
     
-    // Pause beep
-    currentSample = this.addQuietBeep(leftChannel, rightChannel, currentSample, sampleRate, 400, 0.1, 0.01);
+    // Pause marker
+    if (currentSample < numSamples) {
+      currentSample = this.addQuietBeep(leftChannel, rightChannel, currentSample, sampleRate, 400, 0.1, 0.005);
+    }
     
     // Skip to Chinese section
-    currentSample = Math.floor((englishDuration + settings.pauseDuration) * sampleRate);
+    currentSample = Math.min(Math.floor((englishDuration + settings.pauseDuration) * sampleRate), numSamples - 1000);
     
-    // Chinese section beep
-    this.addQuietBeep(leftChannel, rightChannel, currentSample, sampleRate, 1000, 0.1, 0.01);
+    // Chinese section marker
+    if (currentSample < numSamples) {
+      this.addQuietBeep(leftChannel, rightChannel, currentSample, sampleRate, 1000, 0.1, 0.005);
+    }
     
     return this.audioBufferToWavWithMetadata(audioBuffer, englishText, chineseText, settings);
   }
@@ -176,15 +195,34 @@ export class RealAudioGenerator {
     volume: number
   ): number {
     const numSamples = Math.floor(duration * sampleRate);
+    const maxSample = startSample + numSamples;
     
-    for (let i = 0; i < numSamples && startSample + i < leftChannel.length; i++) {
-      const t = i / sampleRate;
-      const sample = Math.sin(2 * Math.PI * frequency * t) * volume;
-      leftChannel[startSample + i] = sample;
-      rightChannel[startSample + i] = sample;
+    // Ensure we don't exceed buffer bounds
+    if (startSample >= leftChannel.length) {
+      return startSample;
     }
     
-    return startSample + numSamples;
+    const endSample = Math.min(maxSample, leftChannel.length);
+    
+    for (let i = 0; i < (endSample - startSample); i++) {
+      const t = i / sampleRate;
+      const sample = Math.sin(2 * Math.PI * frequency * t) * volume;
+      
+      // Add fade in/out to prevent clicks
+      let fade = 1;
+      const fadeLength = Math.min(Math.floor(numSamples * 0.1), 100);
+      if (i < fadeLength) {
+        fade = i / fadeLength;
+      } else if (i > numSamples - fadeLength) {
+        fade = (numSamples - i) / fadeLength;
+      }
+      
+      const finalSample = sample * fade;
+      leftChannel[startSample + i] = finalSample;
+      rightChannel[startSample + i] = finalSample;
+    }
+    
+    return endSample;
   }
 
   private calculateSpeechDuration(text: string, speed: number): number {

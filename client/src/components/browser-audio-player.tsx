@@ -25,7 +25,6 @@ export function BrowserAudioPlayer({ englishText, chineseText, settings, duratio
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef(0);
-  const audioRecorderRef = useRef<AudioRecorder | null>(null);
   const { toast } = useToast();
 
   const englishDuration = englishText.length * 0.08;
