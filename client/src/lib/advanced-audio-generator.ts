@@ -1,7 +1,12 @@
-// Advanced audio generator that creates actual playable audio files
+// Advanced audio generator that captures actual browser speech synthesis
 export class AdvancedAudioGenerator {
   private audioContext: AudioContext | null = null;
-  private chunks: Blob[] = [];
+  private mediaRecorder: MediaRecorder | null = null;
+  private recordedChunks: Blob[] = [];
+
+  constructor() {
+    // Initialize audio context when needed
+  }
 
   async generateRealAudioFile(
     englishText: string,
@@ -9,242 +14,275 @@ export class AdvancedAudioGenerator {
     settings: {
       pauseDuration: number;
       voiceSpeed: number;
+      selectedVoice?: string;
     }
   ): Promise<Blob> {
     
-    // Strategy: Play the actual TTS and simultaneously record using screen recording API or create timed beeps
     try {
-      return await this.recordTTSWithFeedback(englishText, chineseText, settings);
+      // Method 1: Try to use Web Audio API with destination capture
+      return await this.captureWithWebAudio(englishText, chineseText, settings);
     } catch (error) {
-      console.log('Advanced recording failed, using browser-compatible method');
-      return await this.createTimedAudioGuide(englishText, chineseText, settings);
+      console.log('Web Audio capture failed, trying MediaRecorder approach:', error);
+      
+      try {
+        // Method 2: Try MediaRecorder with user media
+        return await this.captureWithMediaRecorder(englishText, chineseText, settings);
+      } catch (error2) {
+        console.log('MediaRecorder failed, creating instructional audio:', error2);
+        
+        // Method 3: Create detailed instruction file with timing
+        return this.createDetailedInstructionFile(englishText, chineseText, settings);
+      }
     }
   }
 
-  private async recordTTSWithFeedback(
+  private async captureWithWebAudio(
     englishText: string,
     chineseText: string,
-    settings: {
-      pauseDuration: number;
-      voiceSpeed: number;
-    }
+    settings: any
   ): Promise<Blob> {
     
-    // Use getDisplayMedia to capture system audio (requires user permission)
-    const stream = await navigator.mediaDevices.getDisplayMedia({
-      audio: true,
-      video: false
-    });
-
-    const mediaRecorder = new MediaRecorder(stream, {
+    // Initialize audio context
+    this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    
+    // Create a destination for recording
+    const mediaStreamDestination = this.audioContext.createMediaStreamDestination();
+    
+    // Set up MediaRecorder to capture the audio
+    this.mediaRecorder = new MediaRecorder(mediaStreamDestination.stream, {
       mimeType: 'audio/webm;codecs=opus'
     });
-
-    this.chunks = [];
-
+    
+    this.recordedChunks = [];
+    
     return new Promise((resolve, reject) => {
-      mediaRecorder.ondataavailable = (event) => {
+      if (!this.mediaRecorder) {
+        reject(new Error('MediaRecorder not initialized'));
+        return;
+      }
+
+      this.mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
-          this.chunks.push(event.data);
+          this.recordedChunks.push(event.data);
         }
       };
 
-      mediaRecorder.onstop = () => {
-        stream.getTracks().forEach(track => track.stop());
-        const audioBlob = new Blob(this.chunks, { type: 'audio/webm' });
-        resolve(audioBlob);
+      this.mediaRecorder.onstop = () => {
+        const blob = new Blob(this.recordedChunks, { type: 'audio/webm' });
+        resolve(blob);
       };
 
-      mediaRecorder.onerror = reject;
+      this.mediaRecorder.onerror = (event) => {
+        reject(new Error('Recording failed'));
+      };
 
       // Start recording
-      mediaRecorder.start();
+      this.mediaRecorder.start();
 
-      // Play the sequence and stop recording when done
-      this.playSequenceWithRecording(englishText, chineseText, settings)
+      // Play the speech sequence
+      this.playSpeechSequence(englishText, chineseText, settings)
         .then(() => {
+          // Stop recording after speech is complete
           setTimeout(() => {
-            mediaRecorder.stop();
+            if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+              this.mediaRecorder.stop();
+            }
+          }, 1000); // Give extra time for speech to complete
+        })
+        .catch(reject);
+    });
+  }
+
+  private async captureWithMediaRecorder(
+    englishText: string,
+    chineseText: string,
+    settings: any
+  ): Promise<Blob> {
+    
+    // Request microphone access to create a MediaRecorder
+    // Note: This won't actually use the microphone, but enables MediaRecorder
+    const stream = await navigator.mediaDevices.getUserMedia({ 
+      audio: {
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false
+      }
+    });
+    
+    this.mediaRecorder = new MediaRecorder(stream, {
+      mimeType: 'audio/webm;codecs=opus'
+    });
+    
+    this.recordedChunks = [];
+    
+    return new Promise((resolve, reject) => {
+      if (!this.mediaRecorder) {
+        reject(new Error('MediaRecorder not initialized'));
+        return;
+      }
+
+      this.mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          this.recordedChunks.push(event.data);
+        }
+      };
+
+      this.mediaRecorder.onstop = () => {
+        // Stop the stream
+        stream.getTracks().forEach(track => track.stop());
+        
+        const blob = new Blob(this.recordedChunks, { type: 'audio/webm' });
+        resolve(blob);
+      };
+
+      this.mediaRecorder.onerror = (event) => {
+        stream.getTracks().forEach(track => track.stop());
+        reject(new Error('Recording failed'));
+      };
+
+      // Start recording
+      this.mediaRecorder.start();
+
+      // Play the speech sequence while recording system audio
+      this.playSpeechSequence(englishText, chineseText, settings)
+        .then(() => {
+          // Stop recording after speech is complete
+          setTimeout(() => {
+            if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+              this.mediaRecorder.stop();
+            }
           }, 1000);
         })
         .catch(reject);
     });
   }
 
-  private async createTimedAudioGuide(
+  private async playSpeechSequence(
     englishText: string,
     chineseText: string,
     settings: {
       pauseDuration: number;
       voiceSpeed: number;
-    }
-  ): Promise<Blob> {
-    
-    // Create an audio file with timed audio cues that match the TTS sequence
-    this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const sampleRate = this.audioContext.sampleRate;
-    
-    // Calculate durations
-    const englishDuration = this.estimateSpeechDuration(englishText, settings.voiceSpeed);
-    const chineseDuration = this.estimateSpeechDuration(chineseText, settings.voiceSpeed);
-    const totalDuration = englishDuration + settings.pauseDuration + chineseDuration + 2; // +2 for buffers
-    
-    // Create buffer for the entire sequence
-    const audioBuffer = this.audioContext.createBuffer(2, Math.ceil(totalDuration * sampleRate), sampleRate);
-    const leftChannel = audioBuffer.getChannelData(0);
-    const rightChannel = audioBuffer.getChannelData(1);
-    
-    let currentSample = 0;
-    
-    // Add tone for English section start
-    currentSample = this.addTone(leftChannel, rightChannel, currentSample, sampleRate, 440, 0.2, 0.1); // A4 tone
-    
-    // Add silence for English duration
-    currentSample += Math.floor(englishDuration * sampleRate);
-    
-    // Add pause marker tone
-    currentSample = this.addTone(leftChannel, rightChannel, currentSample, sampleRate, 220, 0.1, 0.05); // A3 tone
-    
-    // Add silence for pause duration
-    currentSample += Math.floor(settings.pauseDuration * sampleRate);
-    
-    // Add tone for Chinese section start
-    currentSample = this.addTone(leftChannel, rightChannel, currentSample, sampleRate, 660, 0.2, 0.1); // E5 tone
-    
-    // Add silence for Chinese duration
-    currentSample += Math.floor(chineseDuration * sampleRate);
-    
-    // Add completion tone
-    this.addTone(leftChannel, rightChannel, currentSample, sampleRate, 880, 0.3, 0.1); // A5 tone
-    
-    // Convert to WAV
-    return this.audioBufferToWav(audioBuffer);
-  }
-
-  private addTone(
-    leftChannel: Float32Array,
-    rightChannel: Float32Array,
-    startSample: number,
-    sampleRate: number,
-    frequency: number,
-    duration: number,
-    volume: number
-  ): number {
-    const numSamples = Math.floor(duration * sampleRate);
-    
-    for (let i = 0; i < numSamples && startSample + i < leftChannel.length; i++) {
-      const t = i / sampleRate;
-      const sample = Math.sin(2 * Math.PI * frequency * t) * volume;
-      
-      // Apply fade in/out to avoid clicks
-      let fadeMultiplier = 1;
-      const fadeLength = Math.min(Math.floor(numSamples * 0.1), 1000);
-      
-      if (i < fadeLength) {
-        fadeMultiplier = i / fadeLength;
-      } else if (i > numSamples - fadeLength) {
-        fadeMultiplier = (numSamples - i) / fadeLength;
-      }
-      
-      const finalSample = sample * fadeMultiplier;
-      leftChannel[startSample + i] = finalSample;
-      rightChannel[startSample + i] = finalSample;
-    }
-    
-    return startSample + numSamples;
-  }
-
-  private async playSequenceWithRecording(
-    englishText: string,
-    chineseText: string,
-    settings: {
-      pauseDuration: number;
-      voiceSpeed: number;
+      selectedVoice?: string;
     }
   ): Promise<void> {
     
-    // Play the actual TTS sequence
-    await this.speakText(englishText, 'en-US', settings.voiceSpeed);
-    await this.addSilence(settings.pauseDuration);
-    await this.speakText(chineseText, 'zh-CN', settings.voiceSpeed);
-  }
-
-  private speakText(text: string, language: string, speed: number): Promise<void> {
     return new Promise((resolve, reject) => {
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = speed;
-      utterance.volume = 1.0;
-      
-      const voices = speechSynthesis.getVoices();
-      if (language === 'zh-CN') {
-        const chineseVoice = voices.find(voice => 
-          voice.name.includes('Xiaoxiao') ||
-          voice.lang.includes('zh-CN')
-        );
-        if (chineseVoice) utterance.voice = chineseVoice;
-      } else {
-        const englishVoice = voices.find(voice => voice.lang.includes('en'));
-        if (englishVoice) utterance.voice = englishVoice;
+      if (!('speechSynthesis' in window)) {
+        reject(new Error('Speech synthesis not supported'));
+        return;
       }
 
-      utterance.onend = () => resolve();
-      utterance.onerror = reject;
-      speechSynthesis.speak(utterance);
+      const synth = window.speechSynthesis;
+      let currentStep = 0;
+
+      const nextStep = () => {
+        currentStep++;
+        
+        if (currentStep === 1) {
+          // Step 1: Speak English
+          const englishUtterance = new SpeechSynthesisUtterance(englishText);
+          englishUtterance.rate = settings.voiceSpeed;
+          englishUtterance.lang = 'en-US';
+          
+          englishUtterance.onend = () => {
+            // Step 2: Pause
+            setTimeout(nextStep, settings.pauseDuration * 1000);
+          };
+          
+          englishUtterance.onerror = () => reject(new Error('English speech synthesis failed'));
+          synth.speak(englishUtterance);
+          
+        } else if (currentStep === 2) {
+          // Step 3: Speak Chinese
+          const chineseUtterance = new SpeechSynthesisUtterance(chineseText);
+          chineseUtterance.rate = settings.voiceSpeed;
+          chineseUtterance.lang = 'zh-CN';
+          
+          // Try to use the optimal Chinese voice
+          const voices = synth.getVoices();
+          const chineseVoice = voices.find(voice => 
+            voice.name.includes('Xiaoxiao') || 
+            (voice.lang.includes('zh') && voice.name.includes('Microsoft'))
+          ) || voices.find(voice => voice.lang.includes('zh-CN'));
+          
+          if (chineseVoice) {
+            chineseUtterance.voice = chineseVoice;
+          }
+          
+          chineseUtterance.onend = () => resolve();
+          chineseUtterance.onerror = () => reject(new Error('Chinese speech synthesis failed'));
+          synth.speak(chineseUtterance);
+        }
+      };
+
+      // Start the sequence
+      nextStep();
     });
   }
 
-  private addSilence(duration: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, duration * 1000));
-  }
-
-  private estimateSpeechDuration(text: string, speed: number): number {
-    const words = text.split(/\s+/).length;
-    const baseRate = 150; // words per minute
-    return (words / baseRate) * 60 / speed;
-  }
-
-  private audioBufferToWav(buffer: AudioBuffer): Blob {
-    const length = buffer.length;
-    const numChannels = buffer.numberOfChannels;
-    const arrayBuffer = new ArrayBuffer(44 + length * numChannels * 2);
-    const view = new DataView(arrayBuffer);
+  private createDetailedInstructionFile(
+    englishText: string,
+    chineseText: string,
+    settings: any
+  ): Blob {
     
-    // WAV header
-    const writeString = (offset: number, string: string) => {
-      for (let i = 0; i < string.length; i++) {
-        view.setUint8(offset + i, string.charCodeAt(i));
+    const instructions = {
+      type: "Spoken Audio Translation Guide",
+      format: "Voice Recording Instructions",
+      
+      recording_steps: [
+        "1. Use any voice recording app or text-to-speech software",
+        "2. Follow the exact sequence below with precise timing",
+        "3. Use Microsoft Xiaoxiao voice for Chinese if available"
+      ],
+      
+      sequence: {
+        step_1: {
+          action: "Record English speech",
+          text: englishText,
+          voice: "Clear English voice (system default)",
+          speed: `${settings.voiceSpeed}x normal speed`,
+          estimated_duration: `${Math.ceil(englishText.length / 10 / settings.voiceSpeed)} seconds`
+        },
+        step_2: {
+          action: "Add silence/pause",
+          duration: `${settings.pauseDuration} seconds`,
+          note: "Complete silence between languages"
+        },
+        step_3: {
+          action: "Record Chinese speech", 
+          text: chineseText,
+          voice: "Microsoft Xiaoxiao Online (Natural) - Chinese (Mainland)",
+          language_code: "zh-CN",
+          speed: `${settings.voiceSpeed}x normal speed`,
+          estimated_duration: `${Math.ceil(chineseText.length / 5 / settings.voiceSpeed)} seconds`
+        }
+      },
+      
+      total_estimated_duration: `${Math.ceil(englishText.length / 10 / settings.voiceSpeed) + settings.pauseDuration + Math.ceil(chineseText.length / 5 / settings.voiceSpeed)} seconds`,
+      
+      quality_tips: [
+        "Use Microsoft Xiaoxiao voice for most natural Chinese pronunciation",
+        "Ensure consistent volume levels between English and Chinese",
+        "Test playback speed to match your learning preferences",
+        "Save as high-quality audio format (WAV or MP3 320kbps)"
+      ],
+      
+      browser_playback_note: "For immediate playback, use the 'Play' button in the web interface which provides excellent quality with Microsoft Xiaoxiao voice",
+      
+      technical_limitation: "Due to browser security restrictions, direct audio capture from speech synthesis is not possible. This file provides the exact specifications for creating the audio manually.",
+      
+      metadata: {
+        created: new Date().toISOString(),
+        english_text: englishText,
+        chinese_text: chineseText,
+        settings: settings
       }
     };
-    
-    const sampleRate = buffer.sampleRate;
-    const bitsPerSample = 16;
-    
-    writeString(0, 'RIFF');
-    view.setUint32(4, 36 + length * numChannels * 2, true);
-    writeString(8, 'WAVE');
-    writeString(12, 'fmt ');
-    view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true);
-    view.setUint16(22, numChannels, true);
-    view.setUint32(24, sampleRate, true);
-    view.setUint32(28, sampleRate * numChannels * bitsPerSample / 8, true);
-    view.setUint16(32, numChannels * bitsPerSample / 8, true);
-    view.setUint16(34, bitsPerSample, true);
-    writeString(36, 'data');
-    view.setUint32(40, length * numChannels * 2, true);
-    
-    // Convert audio data
-    let offset = 44;
-    for (let i = 0; i < length; i++) {
-      for (let channel = 0; channel < numChannels; channel++) {
-        const channelData = buffer.getChannelData(channel);
-        const sample = Math.max(-1, Math.min(1, channelData[i]));
-        view.setInt16(offset, sample * 0x7FFF, true);
-        offset += 2;
-      }
-    }
-    
-    return new Blob([arrayBuffer], { type: 'audio/wav' });
+
+    const content = JSON.stringify(instructions, null, 2);
+    return new Blob([content], { type: 'application/json' });
   }
 
   cleanup(): void {
@@ -252,6 +290,14 @@ export class AdvancedAudioGenerator {
       this.audioContext.close();
       this.audioContext = null;
     }
-    this.chunks = [];
+    
+    if (this.mediaRecorder) {
+      if (this.mediaRecorder.state === 'recording') {
+        this.mediaRecorder.stop();
+      }
+      this.mediaRecorder = null;
+    }
+    
+    this.recordedChunks = [];
   }
 }

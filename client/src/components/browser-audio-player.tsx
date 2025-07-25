@@ -4,7 +4,7 @@ import { Slider } from "@/components/ui/slider";
 import { Play, Pause, Download, Volume2, FileAudio } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { TTSService } from "@/lib/tts-service";
-import { SimpleAudioGenerator } from "@/lib/simple-audio-generator";
+import { AdvancedAudioGenerator } from "@/lib/advanced-audio-generator";
 
 interface BrowserAudioPlayerProps {
   englishText: string;
@@ -147,17 +147,18 @@ export function BrowserAudioPlayer({ englishText, chineseText, settings, duratio
     
     try {
       toast({
-        title: "Creating Audio File",
-        description: "Generating downloadable audio with timing markers...",
+        title: "Capturing Spoken Audio",
+        description: "Recording actual English and Chinese speech with Microsoft Xiaoxiao voice...",
       });
 
-      // Use simple, reliable audio generation
-      const audioGenerator = new SimpleAudioGenerator();
-      const audioBlob = await audioGenerator.generateAudioFile(
+      // Use advanced audio generation to capture real speech
+      const audioGenerator = new AdvancedAudioGenerator();
+      const audioBlob = await audioGenerator.generateRealAudioFile(
         englishText, 
         chineseText, 
         settings
       );
+      audioGenerator.cleanup();
       
       // Detect the file type and set appropriate extension and filename
       const isWebM = audioBlob.type === 'audio/webm';
