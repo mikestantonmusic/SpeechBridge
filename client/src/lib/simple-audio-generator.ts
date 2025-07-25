@@ -62,44 +62,54 @@ export class SimpleAudioGenerator {
     this.writeString(view, 36, 'data');
     view.setUint32(40, dataSize, true);
     
-    // Generate audio data with timing markers
+    // Generate audio data with clear section markers and background tones
     let offset = 44;
-    let currentSample = 0;
+    let sampleIndex = 0;
     
-    // English section - soft beep at start
+    // English section
     const englishSamples = Math.floor(englishDuration * sampleRate);
-    currentSample = this.addSimpleBeep(view, offset, currentSample, sampleRate, 500, 0.2, 0.1);
     
-    // Fill English section with very quiet tone
-    for (let i = currentSample; i < englishSamples && offset < arrayBuffer.byteLength - 2; i++) {
-      const t = i / sampleRate;
-      const sample = Math.sin(2 * Math.PI * 220 * t) * 0.01; // Very quiet background tone
+    // Start beep for English
+    const englishBeepSamples = this.addSimpleBeep(view, offset, sampleIndex, sampleRate, 800, 0.3, 0.15);
+    offset += englishBeepSamples * 2;
+    sampleIndex += englishBeepSamples;
+    
+    // Fill rest of English section with quiet background tone
+    while (sampleIndex < englishSamples && offset < arrayBuffer.byteLength - 2) {
+      const t = sampleIndex / sampleRate;
+      const sample = Math.sin(2 * Math.PI * 220 * t) * 0.03; // Audible but quiet background tone
       const intSample = Math.round(sample * 32767);
       view.setInt16(offset, intSample, true);
       offset += 2;
-      currentSample = i;
+      sampleIndex++;
     }
     
-    // Pause section - silence
+    // Pause section - complete silence
     const pauseSamples = Math.floor(settings.pauseDuration * sampleRate);
-    for (let i = 0; i < pauseSamples && offset < arrayBuffer.byteLength - 2; i++) {
+    const pauseEnd = sampleIndex + pauseSamples;
+    while (sampleIndex < pauseEnd && offset < arrayBuffer.byteLength - 2) {
       view.setInt16(offset, 0, true); // Silence
       offset += 2;
-      currentSample++;
+      sampleIndex++;
     }
     
-    // Chinese section - different beep
-    currentSample = this.addSimpleBeep(view, offset, 0, sampleRate, 660, 0.2, 0.1);
-    offset += currentSample * 2;
-    
-    // Fill Chinese section with different quiet tone
+    // Chinese section
     const chineseSamples = Math.floor(chineseDuration * sampleRate);
-    for (let i = 0; i < chineseSamples && offset < arrayBuffer.byteLength - 2; i++) {
-      const t = i / sampleRate;
-      const sample = Math.sin(2 * Math.PI * 330 * t) * 0.01; // Slightly higher tone
+    const chineseEnd = sampleIndex + chineseSamples;
+    
+    // Start beep for Chinese
+    const chineseBeepSamples = this.addSimpleBeep(view, offset, 0, sampleRate, 1000, 0.3, 0.15);
+    offset += chineseBeepSamples * 2;
+    sampleIndex += chineseBeepSamples;
+    
+    // Fill rest of Chinese section with different background tone
+    while (sampleIndex < chineseEnd && offset < arrayBuffer.byteLength - 2) {
+      const t = (sampleIndex - (englishSamples + pauseSamples)) / sampleRate;
+      const sample = Math.sin(2 * Math.PI * 330 * t) * 0.03; // Higher frequency tone
       const intSample = Math.round(sample * 32767);
       view.setInt16(offset, intSample, true);
       offset += 2;
+      sampleIndex++;
     }
     
     // Fill any remaining space with silence
@@ -127,14 +137,16 @@ export class SimpleAudioGenerator {
       const t = i / sampleRate;
       let sample = Math.sin(2 * Math.PI * frequency * t) * volume;
       
-      // Fade in/out
-      const fadeLength = Math.floor(beepSamples * 0.1);
-      if (i < fadeLength) {
+      // Apply fade in/out to prevent audio clicks
+      const fadeLength = Math.min(Math.floor(beepSamples * 0.1), 2205); // Max 0.05 seconds fade
+      if (i < fadeLength && fadeLength > 0) {
         sample *= i / fadeLength;
-      } else if (i > beepSamples - fadeLength) {
+      } else if (i > beepSamples - fadeLength && fadeLength > 0) {
         sample *= (beepSamples - i) / fadeLength;
       }
       
+      // Clamp and convert to 16-bit integer
+      sample = Math.max(-1, Math.min(1, sample));
       const intSample = Math.round(sample * 32767);
       view.setInt16(offset, intSample, true);
       offset += 2;
