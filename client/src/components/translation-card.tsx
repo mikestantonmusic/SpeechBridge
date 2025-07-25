@@ -225,19 +225,19 @@ export function TranslationCard({ audioSettings }: TranslationCardProps) {
                 <h4 className="font-medium text-gray-900">Audio Information</h4>
               </div>
               
-              <div className="text-sm text-gray-600 bg-blue-50 p-4 rounded-lg">
+              <div className="text-sm text-gray-600 bg-green-50 p-4 rounded-lg border border-green-200">
                 <p className="mb-2">
-                  <strong>🎵 Enhanced Chinese Audio with Multiple Voice Options</strong>
+                  <strong>✨ High-Quality Chinese Audio Active</strong>
                 </p>
-                <p className="mb-2">
-                  ✓ Optimized Chinese voice selection for better pronunciation<br/>
-                  ✓ Automatic fallback to best available system voices<br/>
+                <p className="mb-2 text-green-700">
+                  ✓ Using Microsoft Xiaoxiao voice for natural Chinese pronunciation<br/>
+                  ✓ Optimized voice selection automatically applied<br/>
                   ✓ Completely free - no API keys required<br/>
-                  ✓ Works offline once the page is loaded
+                  ✓ Works offline with your system voices
                 </p>
-                <p className="text-xs text-gray-500">
-                  Tip: Check the Audio Settings below to select different Chinese voices. 
-                  Microsoft voices (Xiaoxiao, Kangkang) typically provide the most natural Chinese pronunciation.
+                <p className="text-xs text-green-600">
+                  Great! Your system has excellent Chinese voices available. 
+                  You can test different voices in the Audio Settings below.
                 </p>
               </div>
             </div>

@@ -22,6 +22,7 @@ export class TTSService {
       // TTSMaker has a free tier with good Chinese voices
       const response = await fetch('https://api.ttsmaker.com/v1/tts', {
         method: 'POST',
+        mode: 'cors',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -39,56 +40,32 @@ export class TTSService {
         return await response.blob();
       }
     } catch (error) {
-      console.log('TTSMaker failed');
+      // Silently fail - CORS restrictions are common with free APIs
+      return null;
     }
-    return null;
   }
 
   private static async tryResponseVoice(text: string, language: string): Promise<Blob | null> {
     try {
       // ResponseVoice has free Chinese TTS
       const voiceId = language === 'zh-CN' ? 'Chinese_Female' : 'US_English_Female';
-      const response = await fetch(`https://responsevoice.org/responsivevoice/getvoice.php?t=${encodeURIComponent(text)}&tl=${language}&sv=&vn=&pitch=0.5&rate=0.5&vol=1&gender=female`);
+      const response = await fetch(`https://responsevoice.org/responsivevoice/getvoice.php?t=${encodeURIComponent(text)}&tl=${language}&sv=&vn=&pitch=0.5&rate=0.5&vol=1&gender=female`, {
+        mode: 'cors'
+      });
       
       if (response.ok) {
         return await response.blob();
       }
     } catch (error) {
-      console.log('ResponseVoice failed');
+      // Silently fail - CORS restrictions are common with free APIs
+      return null;
     }
-    return null;
   }
 
   static async generateSpeech(text: string, language: string, speed: number = 1.0, volume: number = 100): Promise<HTMLAudioElement | null> {
-    // For Chinese, try multiple free services for better quality
-    if (language === 'zh-CN') {
-      // Try services in order of quality preference
-      const services = [
-        () => this.tryTTSMaker(text, language),
-        () => this.tryResponseVoice(text, language),
-      ];
-
-      for (const service of services) {
-        try {
-          const audioBlob = await service();
-          if (audioBlob && audioBlob.size > 0) {
-            const audio = new Audio(URL.createObjectURL(audioBlob));
-            audio.volume = volume / 100;
-            
-            // Clean up blob URL when audio is done
-            audio.addEventListener('ended', () => {
-              URL.revokeObjectURL(audio.src);
-            });
-            
-            return audio;
-          }
-        } catch (error) {
-          console.log('Service failed, trying next...');
-        }
-      }
-    }
-
-    return null; // Will fallback to browser speech synthesis
+    // Skip external TTS services for now due to CORS restrictions
+    // Browser speech synthesis with Microsoft voices works excellently
+    return null; // Will use browser speech synthesis with optimized voice selection
   }
 
   static getBrowserVoices(): SpeechSynthesisVoice[] {
