@@ -4,8 +4,7 @@ import { Slider } from "@/components/ui/slider";
 import { Play, Pause, Download, Volume2, FileAudio } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { TTSService } from "@/lib/tts-service";
-import { AudioRecorder } from "@/lib/audio-recorder";
-import { AdvancedAudioGenerator } from "@/lib/advanced-audio-generator";
+import { SpeechAudioGenerator } from "@/lib/speech-audio-generator";
 
 interface BrowserAudioPlayerProps {
   englishText: string;
@@ -150,29 +149,17 @@ export function BrowserAudioPlayer({ englishText, chineseText, settings, duratio
     try {
       toast({
         title: "Generating Audio File",
-        description: "Creating downloadable audio with precise timing for your translation...",
+        description: "Attempting to capture real speech audio - you may need to grant screen recording permission...",
       });
 
-      // Try advanced audio generation first, fallback to structured format
-      let audioBlob: Blob;
-      try {
-        const advancedGenerator = new AdvancedAudioGenerator();
-        audioBlob = await advancedGenerator.generateRealAudioFile(
-          englishText, 
-          chineseText, 
-          settings
-        );
-        advancedGenerator.cleanup();
-      } catch (error) {
-        console.log('Advanced audio failed, using structured format');
-        const audioRecorder = new AudioRecorder();
-        audioBlob = await audioRecorder.generateCombinedAudio(
-          englishText, 
-          chineseText, 
-          settings
-        );
-        audioRecorder.cleanup();
-      }
+      // Use the new speech audio generator for real TTS capture
+      const speechGenerator = new SpeechAudioGenerator();
+      const audioBlob = await speechGenerator.generateSpeechAudio(
+        englishText, 
+        chineseText, 
+        settings
+      );
+      speechGenerator.cleanup();
       
       // Detect the file type and set appropriate extension and filename
       const isWebM = audioBlob.type === 'audio/webm';
@@ -196,13 +183,13 @@ export function BrowserAudioPlayer({ englishText, chineseText, settings, duratio
       
       if (isAudio) {
         toast({
-          title: "Real Audio Downloaded!",
-          description: `Recorded ${fileExtension.toUpperCase()} file with actual TTS speech in sequence`,
+          title: "Real Speech Audio Downloaded!",
+          description: `Captured ${fileExtension.toUpperCase()} file containing actual speech: English → pause → Chinese`,
         });
       } else {
         toast({
-          title: "Audio Translation Downloaded!",
-          description: "Structured file with complete translation data - perfect for TTS software",
+          title: "TTS Instructions Downloaded!",
+          description: "Complete translation file with timing and voice recommendations for TTS software",
         });
       }
       
