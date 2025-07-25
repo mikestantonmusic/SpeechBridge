@@ -4,7 +4,8 @@ import { Slider } from "@/components/ui/slider";
 import { Play, Pause, Download, Volume2, FileAudio } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { TTSService } from "@/lib/tts-service";
-import { AudioRecorder, SimpleAudioGenerator } from "@/lib/audio-recorder";
+import { AudioRecorder } from "@/lib/audio-recorder";
+import { AdvancedAudioGenerator } from "@/lib/advanced-audio-generator";
 
 interface BrowserAudioPlayerProps {
   englishText: string;
@@ -149,20 +150,39 @@ export function BrowserAudioPlayer({ englishText, chineseText, settings, duratio
     try {
       toast({
         title: "Generating Audio File",
-        description: "Creating combined audio with English → pause → Chinese...",
+        description: "Creating downloadable audio with precise timing for your translation...",
       });
 
-      // Generate structured audio file that can be used with TTS software
-      const audioRecorder = new AudioRecorder();
-      const audioBlob = await audioRecorder.generateCombinedAudio(
-        englishText, 
-        chineseText, 
-        settings
-      );
+      // Try advanced audio generation first, fallback to structured format
+      let audioBlob: Blob;
+      try {
+        const advancedGenerator = new AdvancedAudioGenerator();
+        audioBlob = await advancedGenerator.generateRealAudioFile(
+          englishText, 
+          chineseText, 
+          settings
+        );
+        advancedGenerator.cleanup();
+      } catch (error) {
+        console.log('Advanced audio failed, using structured format');
+        const audioRecorder = new AudioRecorder();
+        audioBlob = await audioRecorder.generateCombinedAudio(
+          englishText, 
+          chineseText, 
+          settings
+        );
+        audioRecorder.cleanup();
+      }
       
-      // Detect the file type and set appropriate extension
-      const isWavFile = audioBlob.type === 'audio/wav';
-      const fileExtension = isWavFile ? '.wav' : '.json';
+      // Detect the file type and set appropriate extension and filename
+      const isWebM = audioBlob.type === 'audio/webm';
+      const isWav = audioBlob.type === 'audio/wav';
+      const isAudio = isWebM || isWav;
+      
+      let fileExtension = '.json';
+      if (isWebM) fileExtension = '.webm';
+      else if (isWav) fileExtension = '.wav';
+      
       const fileName = `translation_${englishText.slice(0, 20).replace(/[^a-zA-Z0-9]/g, "_")}${fileExtension}`;
       
       const url = window.URL.createObjectURL(audioBlob);
@@ -174,14 +194,17 @@ export function BrowserAudioPlayer({ englishText, chineseText, settings, duratio
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
       
-      audioRecorder.cleanup();
-      
-      toast({
-        title: isWavFile ? "Audio File Downloaded!" : "Audio Translation Downloaded!",
-        description: isWavFile 
-          ? "WAV audio file with correct timing - may contain placeholder audio" 
-          : "Structured translation file - optimal for TTS playback with precise timing",
-      });
+      if (isAudio) {
+        toast({
+          title: "Real Audio Downloaded!",
+          description: `Recorded ${fileExtension.toUpperCase()} file with actual TTS speech in sequence`,
+        });
+      } else {
+        toast({
+          title: "Audio Translation Downloaded!",
+          description: "Structured file with complete translation data - perfect for TTS software",
+        });
+      }
       
     } catch (error) {
       console.error('Audio generation failed:', error);

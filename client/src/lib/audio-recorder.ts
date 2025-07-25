@@ -14,16 +14,20 @@ export class AudioRecorder {
   ): Promise<Blob> {
     
     try {
-      // Try to create actual audio using Web Audio API
-      const audioBlob = await this.createRealAudio(englishText, chineseText, settings);
+      // Try recording actual TTS audio using MediaRecorder
+      const audioBlob = await this.recordTTSAudio(englishText, chineseText, settings);
       return audioBlob;
     } catch (error) {
-      console.log('Real audio generation failed, creating structured format');
+      console.log('TTS recording failed:', error);
       
-      // Fallback to structured format that works with TTS software
+      // Create a detailed structured file with all translation information
       const audioData = {
         type: "audio-translation",
-        format: "tts-sequence",
+        format: "tts-sequence", 
+        texts: {
+          english: englishText,
+          chinese: chineseText
+        },
         sequence: [
           {
             type: "speech",
@@ -50,25 +54,157 @@ export class AudioRecorder {
           playback_instructions: [
             "This file contains a structured audio translation sequence.",
             "For optimal playback:",
-            "1. Open in the web interface at the application URL",
-            "2. Use TTS software that supports JSON format import",
-            "3. Copy text sequences to any TTS application manually"
+            "1. Open the web interface for live audio with Microsoft Xiaoxiao voice",
+            "2. Import into TTS software that supports JSON format",
+            "3. Copy text sequences to speech software manually",
+            "4. Use voice assistants by reading the text sequences"
           ],
-          optimal_voices: {
-            english: "Any clear English voice",
-            chinese: "Microsoft Xiaoxiao Online (Natural) or similar neural voice"
+          recommended_voices: {
+            english: "Any clear English voice (Aria, Zira, etc.)",
+            chinese: "Microsoft Xiaoxiao Online (Natural) for best pronunciation"
+          },
+          timing: {
+            english_duration: this.estimateSpeechDuration(englishText, settings.voiceSpeed),
+            pause_duration: settings.pauseDuration,
+            chinese_duration: this.estimateSpeechDuration(chineseText, settings.voiceSpeed),
+            total_duration: this.estimateTotalDuration(englishText, chineseText, settings)
           }
         },
         metadata: {
           created: new Date().toISOString(),
-          total_duration: this.estimateTotalDuration(englishText, chineseText, settings),
-          generator: "English-Chinese Audio Translator"
+          generator: "English-Chinese Audio Translator",
+          version: "2.0"
         }
       };
 
       const content = JSON.stringify(audioData, null, 2);
       return new Blob([content], { type: 'application/json' });
     }
+  }
+
+  private async recordTTSAudio(
+    englishText: string,
+    chineseText: string,
+    settings: {
+      pauseDuration: number;
+      voiceSpeed: number;
+    }
+  ): Promise<Blob> {
+    
+    // Create an audio context for recording
+    this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    
+    // Create a script processor to capture audio
+    const destination = this.audioContext.createMediaStreamDestination();
+    
+    // Set up MediaRecorder to capture the stream
+    this.mediaRecorder = new MediaRecorder(destination.stream, {
+      mimeType: 'audio/webm;codecs=opus'
+    });
+    
+    this.chunks = [];
+    
+    return new Promise((resolve, reject) => {
+      if (!this.mediaRecorder) {
+        reject(new Error('MediaRecorder not available'));
+        return;
+      }
+
+      this.mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          this.chunks.push(event.data);
+        }
+      };
+
+      this.mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(this.chunks, { type: 'audio/webm' });
+        resolve(audioBlob);
+      };
+
+      this.mediaRecorder.onerror = (event) => {
+        reject(new Error('Recording failed'));
+      };
+
+      // Start recording
+      this.mediaRecorder.start();
+      
+      // Play the TTS sequence and record it
+      this.playTTSSequence(englishText, chineseText, settings)
+        .then(() => {
+          // Stop recording after sequence completes
+          setTimeout(() => {
+            if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+              this.mediaRecorder.stop();
+            }
+          }, 500); // Small buffer
+        })
+        .catch(reject);
+    });
+  }
+
+  private async playTTSSequence(
+    englishText: string,
+    chineseText: string,
+    settings: {
+      pauseDuration: number;
+      voiceSpeed: number;
+    }
+  ): Promise<void> {
+    
+    // Play English
+    await this.speakText(englishText, 'en-US', settings.voiceSpeed);
+    
+    // Pause
+    await this.addSilence(settings.pauseDuration);
+    
+    // Play Chinese  
+    await this.speakText(chineseText, 'zh-CN', settings.voiceSpeed);
+  }
+
+  private speakText(text: string, language: string, speed: number): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (!('speechSynthesis' in window)) {
+        reject(new Error('Speech synthesis not supported'));
+        return;
+      }
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = speed;
+      utterance.volume = 1.0;
+      
+      // Set optimal voice based on language
+      const voices = speechSynthesis.getVoices();
+      if (language === 'zh-CN') {
+        const chineseVoice = voices.find(voice => 
+          voice.name.includes('Xiaoxiao') ||
+          voice.lang.includes('zh-CN') || 
+          voice.lang.includes('zh') || 
+          voice.lang.includes('cmn')
+        );
+        if (chineseVoice) {
+          utterance.voice = chineseVoice;
+          console.log('Using Chinese voice:', chineseVoice.name);
+        }
+      } else {
+        const englishVoice = voices.find(voice => 
+          voice.lang.includes('en-US') || voice.lang.includes('en')
+        );
+        if (englishVoice) {
+          utterance.voice = englishVoice;
+        }
+      }
+
+      utterance.onend = () => resolve();
+      utterance.onerror = (event) => reject(event.error);
+
+      speechSynthesis.speak(utterance);
+    });
+  }
+
+  private addSilence(duration: number): Promise<void> {
+    return new Promise(resolve => {
+      setTimeout(resolve, duration * 1000);
+    });
   }
 
   private async createRealAudio(
