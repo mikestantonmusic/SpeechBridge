@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Play, Pause, Download, Volume2 } from "lucide-react";
+import { Play, Pause, Download, Volume2, FileAudio } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { TTSService } from "@/lib/tts-service";
+import { AudioRecorder, SimpleAudioGenerator } from "@/lib/audio-recorder";
 
 interface BrowserAudioPlayerProps {
   englishText: string;
@@ -21,8 +22,10 @@ export function BrowserAudioPlayer({ englishText, chineseText, settings, duratio
   const [currentTime, setCurrentTime] = useState(0);
   const [currentPhase, setCurrentPhase] = useState<"idle" | "english" | "pause" | "chinese">("idle");
   const [volume, setVolume] = useState(75);
+  const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef(0);
+  const audioRecorderRef = useRef<AudioRecorder | null>(null);
   const { toast } = useToast();
 
   const englishDuration = englishText.length * 0.08;
@@ -140,30 +143,55 @@ export function BrowserAudioPlayer({ englishText, chineseText, settings, duratio
     }
   };
 
-  const handleDownload = async () => {
+  const generateAndDownloadAudio = async () => {
+    setIsGeneratingAudio(true);
+    
     try {
-      // Create a simple text file with the translation
-      const content = `English: ${englishText}\n中文: ${chineseText}\n\nSettings:\nPause Duration: ${settings.pauseDuration}s\nVoice Speed: ${settings.voiceSpeed}x\nQuality: ${settings.audioQuality}`;
-      const blob = new Blob([content], { type: 'text/plain' });
-      const url = window.URL.createObjectURL(blob);
+      toast({
+        title: "Generating Audio File",
+        description: "Creating combined audio with English → pause → Chinese...",
+      });
+
+      // Generate structured audio file that can be used with TTS software
+      const audioRecorder = new AudioRecorder();
+      const audioBlob = await audioRecorder.generateCombinedAudio(
+        englishText, 
+        chineseText, 
+        settings
+      );
+      
+      // Detect the file type and set appropriate extension
+      const isWavFile = audioBlob.type === 'audio/wav';
+      const fileExtension = isWavFile ? '.wav' : '.json';
+      const fileName = `translation_${englishText.slice(0, 20).replace(/[^a-zA-Z0-9]/g, "_")}${fileExtension}`;
+      
+      const url = window.URL.createObjectURL(audioBlob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `translation_${englishText.slice(0, 20).replace(/[^a-zA-Z0-9]/g, "_")}.txt`;
+      a.download = fileName;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
       
+      audioRecorder.cleanup();
+      
       toast({
-        title: "Download Started",
-        description: "Translation text file downloaded successfully!",
+        title: isWavFile ? "Audio File Downloaded!" : "Audio Translation Downloaded!",
+        description: isWavFile 
+          ? "WAV audio file with correct timing - may contain placeholder audio" 
+          : "Structured translation file - optimal for TTS playback with precise timing",
       });
+      
     } catch (error) {
+      console.error('Audio generation failed:', error);
       toast({
         title: "Download Failed",
-        description: "Failed to download translation file",
+        description: "Unable to generate audio file. Try using the play button instead.",
         variant: "destructive",
       });
+    } finally {
+      setIsGeneratingAudio(false);
     }
   };
 
@@ -228,11 +256,22 @@ export function BrowserAudioPlayer({ englishText, chineseText, settings, duratio
         <Button
           variant="outline"
           size="sm"
-          onClick={handleDownload}
+          onClick={generateAndDownloadAudio}
+          disabled={isGeneratingAudio}
           className="flex items-center space-x-1"
+          title="Download audio file with English → pause → Chinese sequence"
         >
-          <Download className="w-4 h-4" />
-          <span>Save</span>
+          {isGeneratingAudio ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent" />
+              <span>Creating...</span>
+            </>
+          ) : (
+            <>
+              <FileAudio className="w-4 h-4" />
+              <span>Download Audio</span>
+            </>
+          )}
         </Button>
       </div>
 
