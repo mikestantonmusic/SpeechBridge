@@ -23,50 +23,132 @@ const audioRequestSchema = z.object({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Translation endpoint
+  // Translation endpoint with multiple free services
   app.post("/api/translate", async (req, res) => {
     try {
       const { text } = translateRequestSchema.parse(req.body);
       
-      // Use Google Translate API
-      const googleTranslateApiKey = process.env.GOOGLE_TRANSLATE_API_KEY || process.env.GOOGLE_API_KEY || "";
+      // Try multiple free translation services in order of preference
+      let translatedText = "";
+      let serviceName = "";
       
-      if (!googleTranslateApiKey) {
+      // Option 1: Try MyMemory (completely free)
+      try {
+        const myMemoryUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|zh-CN`;
+        const myMemoryResponse = await fetch(myMemoryUrl);
+        const myMemoryData = await myMemoryResponse.json();
+        
+        if (myMemoryData.responseStatus === 200 && myMemoryData.responseData?.translatedText) {
+          translatedText = myMemoryData.responseData.translatedText;
+          serviceName = "MyMemory";
+        }
+      } catch (error) {
+        console.log("MyMemory translation failed, trying next service...");
+      }
+      
+      // Option 2: Try LibreTranslate public instance (if MyMemory fails)
+      if (!translatedText) {
+        try {
+          const libreResponse = await fetch('https://libretranslate.de/translate', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              q: text,
+              source: 'en',
+              target: 'zh',
+              format: 'text'
+            })
+          });
+          
+          if (libreResponse.ok) {
+            const libreData = await libreResponse.json();
+            if (libreData.translatedText) {
+              translatedText = libreData.translatedText;
+              serviceName = "LibreTranslate";
+            }
+          }
+        } catch (error) {
+          console.log("LibreTranslate failed, trying next service...");
+        }
+      }
+      
+      // Option 3: Try Microsoft Translator (if configured)
+      if (!translatedText) {
+        const microsoftKey = process.env.MICROSOFT_TRANSLATOR_KEY;
+        const microsoftRegion = process.env.MICROSOFT_TRANSLATOR_REGION || "global";
+        
+        if (microsoftKey) {
+          try {
+            const microsoftResponse = await fetch('https://api.cognitive.microsofttranslator.com/translate?api-version=3.0&to=zh-Hans', {
+              method: 'POST',
+              headers: {
+                'Ocp-Apim-Subscription-Key': microsoftKey,
+                'Ocp-Apim-Subscription-Region': microsoftRegion,
+                'Content-type': 'application/json'
+              },
+              body: JSON.stringify([{text: text}])
+            });
+            
+            if (microsoftResponse.ok) {
+              const microsoftData = await microsoftResponse.json();
+              if (microsoftData[0]?.translations?.[0]?.text) {
+                translatedText = microsoftData[0].translations[0].text;
+                serviceName = "Microsoft Translator";
+              }
+            }
+          } catch (error) {
+            console.log("Microsoft Translator failed, trying Google...");
+          }
+        }
+      }
+      
+      // Option 4: Try Google Translate (if configured)
+      if (!translatedText) {
+        const googleApiKey = process.env.GOOGLE_TRANSLATE_API_KEY || process.env.GOOGLE_API_KEY;
+        
+        if (googleApiKey) {
+          try {
+            const googleResponse = await fetch(`https://translation.googleapis.com/language/translate/v2?key=${googleApiKey}`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                q: text,
+                source: "en",
+                target: "zh-CN",
+                format: "text",
+              }),
+            });
+
+            if (googleResponse.ok) {
+              const googleData = await googleResponse.json();
+              if (googleData.data?.translations?.[0]?.translatedText) {
+                translatedText = googleData.data.translations[0].translatedText;
+                serviceName = "Google Translate";
+              }
+            }
+          } catch (error) {
+            console.log("Google Translate failed");
+          }
+        }
+      }
+      
+      // If all services failed
+      if (!translatedText) {
         return res.status(500).json({ 
-          message: "Translation service not configured. Please provide GOOGLE_TRANSLATE_API_KEY environment variable." 
+          message: "All translation services are currently unavailable. Please try again later or configure API keys for Microsoft Translator or Google Translate." 
         });
       }
-
-      const translateUrl = `https://translation.googleapis.com/language/translate/v2?key=${googleTranslateApiKey}`;
-      
-      const translateResponse = await fetch(translateUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          q: text,
-          source: "en",
-          target: "zh-CN",
-          format: "text",
-        }),
-      });
-
-      if (!translateResponse.ok) {
-        const errorText = await translateResponse.text();
-        console.error("Translation API error:", errorText);
-        return res.status(500).json({ 
-          message: "Translation failed. Please check your API key and try again." 
-        });
-      }
-
-      const translateData = await translateResponse.json();
-      const translatedText = translateData.data.translations[0].translatedText;
 
       res.json({
         englishText: text,
         chineseText: translatedText,
+        service: serviceName
       });
+      
     } catch (error) {
       console.error("Translation error:", error);
       res.status(500).json({ 
@@ -75,61 +157,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Generate audio endpoint
+  // Generate audio endpoint - fallback to browser-based TTS
   app.post("/api/generate-audio", async (req, res) => {
     try {
       const { englishText, chineseText, settings } = audioRequestSchema.parse(req.body);
       
-      const googleTtsApiKey = process.env.GOOGLE_TTS_API_KEY || process.env.GOOGLE_API_KEY || "";
-      
-      if (!googleTtsApiKey) {
-        return res.status(500).json({ 
-          message: "Text-to-speech service not configured. Please provide GOOGLE_TTS_API_KEY environment variable." 
-        });
-      }
-
-      // Generate English audio
-      const englishAudio = await generateSpeech(englishText, "en-US", "en-US-Standard-C", settings.voiceSpeed, googleTtsApiKey);
-      
-      // Generate Chinese audio
-      const chineseAudio = await generateSpeech(chineseText, "zh-CN", "zh-CN-Standard-A", settings.voiceSpeed, googleTtsApiKey);
-
-      // Create audio files directory if it doesn't exist
-      const audioDir = path.join(process.cwd(), "audio_files");
-      if (!fs.existsSync(audioDir)) {
-        fs.mkdirSync(audioDir, { recursive: true });
-      }
-
-      // Save individual audio files
+      // For now, return audio metadata without generating actual files
+      // The frontend will use browser Speech Synthesis API for audio generation
       const audioId = crypto.randomBytes(16).toString("hex");
-      const englishPath = path.join(audioDir, `${audioId}_en.mp3`);
-      const chinesePath = path.join(audioDir, `${audioId}_zh.mp3`);
-      const combinedPath = path.join(audioDir, `${audioId}_combined.mp3`);
-
-      fs.writeFileSync(englishPath, englishAudio);
-      fs.writeFileSync(chinesePath, chineseAudio);
-
-      // Combine audio files with pause (simplified - in production use FFmpeg)
-      const combinedAudio = await combineAudioWithPause(englishAudio, chineseAudio, settings.pauseDuration);
-      fs.writeFileSync(combinedPath, combinedAudio);
-
+      
       // Calculate approximate duration
-      const duration = (englishText.length * 0.1) + settings.pauseDuration + (chineseText.length * 0.1);
+      const englishDuration = englishText.length * 0.08; // ~80ms per character
+      const chineseDuration = chineseText.length * 0.12; // ~120ms per character for Chinese
+      const totalDuration = englishDuration + settings.pauseDuration + chineseDuration;
 
       // Save translation to storage
       const translation = await storage.createTranslation({
         englishText,
         chineseText,
-        audioFileUrl: `/api/audio/${audioId}_combined.mp3`,
-        duration,
+        audioFileUrl: null, // No file generated server-side
+        duration: totalDuration,
       });
 
       res.json({
         id: translation.id,
-        audioUrl: `/api/audio/${audioId}_combined.mp3`,
-        englishAudioUrl: `/api/audio/${audioId}_en.mp3`,
-        chineseAudioUrl: `/api/audio/${audioId}_zh.mp3`,
-        duration,
+        audioUrl: null, // Will be generated client-side
+        englishAudioUrl: null,
+        chineseAudioUrl: null,
+        duration: totalDuration,
+        useClientTTS: true, // Flag to indicate client-side generation
+        settings
       });
     } catch (error) {
       console.error("Audio generation error:", error);

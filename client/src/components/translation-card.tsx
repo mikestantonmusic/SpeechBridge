@@ -3,17 +3,23 @@ import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
-import { AudioPlayer } from "@/components/ui/audio-player";
+import { BrowserAudioPlayer } from "@/components/browser-audio-player";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Languages, Play, Download, FileAudio } from "lucide-react";
+import { Languages, Play, Info } from "lucide-react";
 
 interface TranslationResult {
   id: string;
-  audioUrl: string;
-  englishAudioUrl: string;
-  chineseAudioUrl: string;
+  audioUrl: string | null;
+  englishAudioUrl: string | null;
+  chineseAudioUrl: string | null;
   duration: number;
+  useClientTTS?: boolean;
+  settings?: {
+    pauseDuration: number;
+    voiceSpeed: number;
+    audioQuality: string;
+  };
 }
 
 interface AudioSettings {
@@ -95,32 +101,34 @@ export function TranslationCard({ audioSettings }: TranslationCardProps) {
     translateMutation.mutate(inputText.trim());
   };
 
-  const handleDownload = async (format: "mp3" | "wav") => {
-    if (!translationResult) return;
-    
-    try {
-      const response = await fetch(translationResult.audioUrl);
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `translation.${format}`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      
+  const playIndividualAudio = (text: string, language: 'en' | 'zh') => {
+    if (!('speechSynthesis' in window)) {
       toast({
-        title: "Download Started",
-        description: `Downloading ${format.toUpperCase()} file...`,
-      });
-    } catch (error) {
-      toast({
-        title: "Download Failed",
-        description: "Failed to download audio file",
+        title: "Audio Not Supported",
+        description: "Your browser doesn't support speech synthesis",
         variant: "destructive",
       });
+      return;
     }
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = audioSettings.voiceSpeed;
+    
+    // Set voice based on language
+    const voices = speechSynthesis.getVoices();
+    if (language === 'zh') {
+      const chineseVoice = voices.find(voice => 
+        voice.lang.includes('zh') || voice.lang.includes('cmn')
+      );
+      if (chineseVoice) utterance.voice = chineseVoice;
+    } else {
+      const englishVoice = voices.find(voice => 
+        voice.lang.includes('en-US') || voice.lang.includes('en')
+      );
+      if (englishVoice) utterance.voice = englishVoice;
+    }
+
+    speechSynthesis.speak(utterance);
   };
 
   const isLoading = translateMutation.isPending || generateAudioMutation.isPending;
@@ -179,12 +187,7 @@ export function TranslationCard({ audioSettings }: TranslationCardProps) {
                     variant="ghost"
                     size="sm"
                     className="text-primary hover:text-blue-600 transition-colors p-1"
-                    onClick={() => {
-                      if (translationResult?.englishAudioUrl) {
-                        const audio = new Audio(translationResult.englishAudioUrl);
-                        audio.play();
-                      }
-                    }}
+                    onClick={() => playIndividualAudio(englishText, 'en')}
                   >
                     <Play className="w-4 h-4" />
                   </Button>
@@ -202,12 +205,7 @@ export function TranslationCard({ audioSettings }: TranslationCardProps) {
                     variant="ghost"
                     size="sm"
                     className="text-primary hover:text-blue-600 transition-colors p-1"
-                    onClick={() => {
-                      if (translationResult?.chineseAudioUrl) {
-                        const audio = new Audio(translationResult.chineseAudioUrl);
-                        audio.play();
-                      }
-                    }}
+                    onClick={() => playIndividualAudio(chineseText, 'zh')}
                   >
                     <Play className="w-4 h-4" />
                   </Button>
@@ -217,38 +215,33 @@ export function TranslationCard({ audioSettings }: TranslationCardProps) {
             </div>
 
             <div className="mb-6">
-              <AudioPlayer
-                audioUrl={translationResult?.audioUrl}
+              <BrowserAudioPlayer
+                englishText={englishText}
+                chineseText={chineseText}
+                settings={audioSettings}
                 duration={translationResult?.duration}
               />
             </div>
 
             <div className="bg-white rounded-lg p-6 border border-gray-200">
-              <h4 className="font-medium text-gray-900 mb-4 flex items-center">
-                <Download className="w-5 h-5 text-primary mr-2" />
-                Download Options
-              </h4>
+              <div className="flex items-center mb-4">
+                <Info className="w-5 h-5 text-blue-500 mr-2" />
+                <h4 className="font-medium text-gray-900">Audio Information</h4>
+              </div>
               
-              <div className="grid sm:grid-cols-2 gap-4">
-                <Button
-                  variant="outline"
-                  onClick={() => handleDownload("mp3")}
-                  className="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <FileAudio className="w-5 h-5 mr-2 text-gray-500" />
-                  <span className="font-medium">Download MP3</span>
-                  <span className="ml-2 text-xs text-gray-500">(Higher quality)</span>
-                </Button>
-                
-                <Button
-                  variant="outline"
-                  onClick={() => handleDownload("wav")}
-                  className="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <FileAudio className="w-5 h-5 mr-2 text-gray-500" />
-                  <span className="font-medium">Download WAV</span>
-                  <span className="ml-2 text-xs text-gray-500">(Uncompressed)</span>
-                </Button>
+              <div className="text-sm text-gray-600 bg-blue-50 p-4 rounded-lg">
+                <p className="mb-2">
+                  <strong>🎵 Audio generated using your browser's built-in speech synthesis</strong>
+                </p>
+                <p className="mb-2">
+                  ✓ Completely free - no API keys required<br/>
+                  ✓ Works offline once the page is loaded<br/>
+                  ✓ Supports multiple languages and voices
+                </p>
+                <p className="text-xs text-gray-500">
+                  Note: Audio quality depends on your browser and operating system. 
+                  For higher quality audio, you can configure Google Text-to-Speech API keys.
+                </p>
               </div>
             </div>
           </div>
