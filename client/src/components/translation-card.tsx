@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { BrowserAudioPlayer } from "@/components/browser-audio-player";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { TTSService } from "@/lib/tts-service";
 import { Languages, Play, Info } from "lucide-react";
 
 interface TranslationResult {
@@ -101,34 +102,29 @@ export function TranslationCard({ audioSettings }: TranslationCardProps) {
     translateMutation.mutate(inputText.trim());
   };
 
-  const playIndividualAudio = (text: string, language: 'en' | 'zh') => {
-    if (!('speechSynthesis' in window)) {
+  const playIndividualAudio = async (text: string, language: 'en' | 'zh') => {
+    try {
+      const langCode = language === 'zh' ? 'zh-CN' : 'en-US';
+      
+      // Try external TTS for Chinese first
+      if (language === 'zh') {
+        const externalAudio = await TTSService.generateSpeech(text, langCode, audioSettings.voiceSpeed, 75);
+        if (externalAudio) {
+          externalAudio.play();
+          return;
+        }
+      }
+      
+      // Fallback to enhanced browser speech
+      await TTSService.speakWithBestVoice(text, langCode, audioSettings.voiceSpeed, 75);
+      
+    } catch (error) {
       toast({
-        title: "Audio Not Supported",
-        description: "Your browser doesn't support speech synthesis",
+        title: "Audio Playback Failed",
+        description: "Unable to play audio. Please check your browser's speech synthesis support.",
         variant: "destructive",
       });
-      return;
     }
-
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = audioSettings.voiceSpeed;
-    
-    // Set voice based on language
-    const voices = speechSynthesis.getVoices();
-    if (language === 'zh') {
-      const chineseVoice = voices.find(voice => 
-        voice.lang.includes('zh') || voice.lang.includes('cmn')
-      );
-      if (chineseVoice) utterance.voice = chineseVoice;
-    } else {
-      const englishVoice = voices.find(voice => 
-        voice.lang.includes('en-US') || voice.lang.includes('en')
-      );
-      if (englishVoice) utterance.voice = englishVoice;
-    }
-
-    speechSynthesis.speak(utterance);
   };
 
   const isLoading = translateMutation.isPending || generateAudioMutation.isPending;
@@ -231,16 +227,17 @@ export function TranslationCard({ audioSettings }: TranslationCardProps) {
               
               <div className="text-sm text-gray-600 bg-blue-50 p-4 rounded-lg">
                 <p className="mb-2">
-                  <strong>🎵 Audio generated using your browser's built-in speech synthesis</strong>
+                  <strong>🎵 Enhanced Chinese Audio with Multiple Voice Options</strong>
                 </p>
                 <p className="mb-2">
+                  ✓ Optimized Chinese voice selection for better pronunciation<br/>
+                  ✓ Automatic fallback to best available system voices<br/>
                   ✓ Completely free - no API keys required<br/>
-                  ✓ Works offline once the page is loaded<br/>
-                  ✓ Supports multiple languages and voices
+                  ✓ Works offline once the page is loaded
                 </p>
                 <p className="text-xs text-gray-500">
-                  Note: Audio quality depends on your browser and operating system. 
-                  For higher quality audio, you can configure Google Text-to-Speech API keys.
+                  Tip: Check the Audio Settings below to select different Chinese voices. 
+                  Microsoft voices (Xiaoxiao, Kangkang) typically provide the most natural Chinese pronunciation.
                 </p>
               </div>
             </div>

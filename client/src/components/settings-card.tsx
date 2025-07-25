@@ -1,6 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { VoiceSelector } from "@/components/voice-selector";
 import { Settings } from "lucide-react";
 
 interface AudioSettings {
@@ -44,7 +45,7 @@ export function SettingsCard({ settings, onSettingsChange }: SettingsCardProps) 
           Audio Settings
         </h3>
         
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div>
             <Label className="block text-sm font-medium text-gray-700 mb-2">Pause Duration</Label>
             <Select value={settings.pauseDuration.toString()} onValueChange={handlePauseDurationChange}>
@@ -87,6 +88,20 @@ export function SettingsCard({ settings, onSettingsChange }: SettingsCardProps) 
               </SelectContent>
             </Select>
           </div>
+          
+          <div>
+            <VoiceSelector />
+          </div>
+        </div>
+        
+        <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+          <h4 className="font-medium text-blue-900 mb-2">Chinese Audio Quality Tips</h4>
+          <ul className="text-sm text-blue-800 space-y-1">
+            <li>• Try different Chinese voices for better pronunciation</li>
+            <li>• Microsoft voices (Xiaoxiao, Kangkang) typically sound more natural</li>
+            <li>• Slower speed (0.75x) often improves clarity for learning</li>
+            <li>• Some operating systems have better Chinese TTS than others</li>
+          </ul>
         </div>
       </CardContent>
     </Card>

@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Play, Pause, Download, Volume2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { TTSService } from "@/lib/tts-service";
 
 interface BrowserAudioPlayerProps {
   englishText: string;
@@ -38,34 +39,30 @@ export function BrowserAudioPlayer({ englishText, chineseText, settings, duratio
   }, []);
 
   const speakText = (text: string, language: string, speed: number): Promise<void> => {
-    return new Promise((resolve, reject) => {
-      if (!('speechSynthesis' in window)) {
-        reject(new Error('Speech synthesis not supported'));
-        return;
-      }
-
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = speed;
-      utterance.volume = volume / 100;
-      
-      // Set voice based on language
-      const voices = speechSynthesis.getVoices();
+    return new Promise(async (resolve, reject) => {
+      // Try external TTS services for Chinese first
       if (language === 'zh-CN') {
-        const chineseVoice = voices.find(voice => 
-          voice.lang.includes('zh') || voice.lang.includes('cmn')
-        );
-        if (chineseVoice) utterance.voice = chineseVoice;
-      } else {
-        const englishVoice = voices.find(voice => 
-          voice.lang.includes('en-US') || voice.lang.includes('en')
-        );
-        if (englishVoice) utterance.voice = englishVoice;
+        try {
+          const externalAudio = await TTSService.generateSpeech(text, language, speed, volume);
+          if (externalAudio) {
+            externalAudio.onended = () => resolve();
+            externalAudio.onerror = () => fallbackToBrowserSpeech();
+            externalAudio.play();
+            return;
+          }
+        } catch (error) {
+          console.log('External TTS failed, using browser speech');
+        }
       }
-
-      utterance.onend = () => resolve();
-      utterance.onerror = (event) => reject(event.error);
-
-      speechSynthesis.speak(utterance);
+      
+      // Fallback to enhanced browser speech synthesis
+      fallbackToBrowserSpeech();
+      
+      function fallbackToBrowserSpeech() {
+        TTSService.speakWithBestVoice(text, language, speed, volume)
+          .then(() => resolve())
+          .catch((error) => reject(error));
+      }
     });
   };
 

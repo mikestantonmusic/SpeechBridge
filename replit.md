@@ -2,7 +2,7 @@
 
 ## Overview
 
-This is a full-stack web application that provides English-to-Chinese translation with audio generation capabilities. Users can input English text, get Chinese translations via Google Translate API, and generate audio files with customizable settings like pause duration, voice speed, and audio quality.
+This is a full-stack web application that provides English-to-Chinese translation with enhanced audio generation capabilities. Users can input English text, get Chinese translations via multiple free translation services, and generate high-quality audio playback with customizable settings like pause duration, voice speed, and Chinese voice selection. The app works completely free without requiring any API keys.
 
 ## User Preferences
 
@@ -35,8 +35,8 @@ The application uses three main tables:
 - **audio_settings**: User preferences for audio generation
 
 ### API Endpoints
-- `POST /api/translate`: English to Chinese translation using Google Translate API
-- `POST /api/audio`: Audio generation with custom settings
+- `POST /api/translate`: English to Chinese translation using multiple free services (MyMemory, LibreTranslate, Microsoft Translator, Google Translate)
+- `POST /api/generate-audio`: Audio metadata generation with browser-based TTS fallback
 - `GET /api/translations`: Retrieve translation history
 - `GET/POST /api/audio-settings`: Manage audio preferences
 
