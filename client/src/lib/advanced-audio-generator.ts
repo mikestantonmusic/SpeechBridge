@@ -1,11 +1,14 @@
+import { AudioConverter } from './audio-converter';
+
 // Advanced audio generator that captures actual browser speech synthesis
 export class AdvancedAudioGenerator {
   private audioContext: AudioContext | null = null;
   private mediaRecorder: MediaRecorder | null = null;
   private recordedChunks: Blob[] = [];
+  private audioConverter: AudioConverter;
 
   constructor() {
-    // Initialize audio context when needed
+    this.audioConverter = new AudioConverter();
   }
 
   async generateRealAudioFile(
@@ -15,18 +18,53 @@ export class AdvancedAudioGenerator {
       pauseDuration: number;
       voiceSpeed: number;
       selectedVoice?: string;
-    }
+    },
+    preferredFormat: 'webm' | 'wav' | 'mp3' = 'wav'
   ): Promise<Blob> {
     
     try {
       // Method 1: Try MediaRecorder approach (most likely to work)
-      return await this.captureWithMediaRecorder(englishText, chineseText, settings);
+      const webmBlob = await this.captureWithMediaRecorder(englishText, chineseText, settings);
+      
+      // Convert to preferred format if not webm
+      if (preferredFormat === 'wav' && AudioConverter.isConversionSupported()) {
+        try {
+          const convertedBlob = await this.audioConverter.convertToWAV(webmBlob);
+          return convertedBlob;
+        } catch (conversionError) {
+          console.log('WAV conversion failed, returning original webm:', conversionError);
+          return webmBlob;
+        }
+      } else if (preferredFormat === 'mp3') {
+        try {
+          const convertedBlob = await this.audioConverter.convertToMP3(webmBlob);
+          return convertedBlob;
+        } catch (conversionError) {
+          console.log('MP3 conversion failed, returning original webm:', conversionError);
+          return webmBlob;
+        }
+      }
+      
+      return webmBlob;
+      
     } catch (error) {
       console.log('MediaRecorder failed, trying Web Audio approach:', error);
       
       try {
         // Method 2: Try Web Audio API with destination capture
-        return await this.captureWithWebAudio(englishText, chineseText, settings);
+        const webmBlob = await this.captureWithWebAudio(englishText, chineseText, settings);
+        
+        // Convert to preferred format if possible
+        if (preferredFormat === 'wav' && AudioConverter.isConversionSupported()) {
+          try {
+            return await this.audioConverter.convertToWAV(webmBlob);
+          } catch {
+            return webmBlob;
+          }
+        }
+        
+        return webmBlob;
+        
       } catch (error2) {
         console.log('All recording methods failed, creating instruction file:', error2);
         

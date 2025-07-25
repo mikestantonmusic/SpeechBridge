@@ -151,12 +151,13 @@ export function BrowserAudioPlayer({ englishText, chineseText, settings, duratio
         description: "Attempting to capture system audio with the same Microsoft Xiaoxiao voice quality. May request microphone or screen sharing permission.",
       });
 
-      // Use advanced audio generation to capture real speech
+      // Use advanced audio generation to capture real speech with WAV conversion
       const audioGenerator = new AdvancedAudioGenerator();
       const audioBlob = await audioGenerator.generateRealAudioFile(
         englishText, 
         chineseText, 
-        settings
+        settings,
+        'wav' // Convert to WAV format for better compatibility
       );
       audioGenerator.cleanup();
       
