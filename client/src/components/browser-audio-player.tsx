@@ -4,7 +4,7 @@ import { Slider } from "@/components/ui/slider";
 import { Play, Pause, Download, Volume2, FileAudio } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { TTSService } from "@/lib/tts-service";
-import { SpeechAudioGenerator } from "@/lib/speech-audio-generator";
+import { RealAudioGenerator } from "@/lib/real-audio-generator";
 
 interface BrowserAudioPlayerProps {
   englishText: string;
@@ -149,17 +149,17 @@ export function BrowserAudioPlayer({ englishText, chineseText, settings, duratio
     try {
       toast({
         title: "Generating Audio File",
-        description: "Attempting to capture real speech audio - you may need to grant screen recording permission...",
+        description: "Creating WAV audio file with precise timing for English → pause → Chinese sequence...",
       });
 
-      // Use the new speech audio generator for real TTS capture
-      const speechGenerator = new SpeechAudioGenerator();
-      const audioBlob = await speechGenerator.generateSpeechAudio(
+      // Use the real audio generator to create actual playable WAV files
+      const audioGenerator = new RealAudioGenerator();
+      const audioBlob = await audioGenerator.generatePlayableAudio(
         englishText, 
         chineseText, 
         settings
       );
-      speechGenerator.cleanup();
+      audioGenerator.cleanup();
       
       // Detect the file type and set appropriate extension and filename
       const isWebM = audioBlob.type === 'audio/webm';
@@ -183,8 +183,8 @@ export function BrowserAudioPlayer({ englishText, chineseText, settings, duratio
       
       if (isAudio) {
         toast({
-          title: "Real Speech Audio Downloaded!",
-          description: `Captured ${fileExtension.toUpperCase()} file containing actual speech: English → pause → Chinese`,
+          title: "Audio File Downloaded!",
+          description: `${fileExtension.toUpperCase()} file created with precise timing markers for English → pause → Chinese sequence`,
         });
       } else {
         toast({
