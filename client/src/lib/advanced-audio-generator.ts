@@ -99,15 +99,31 @@ export class AdvancedAudioGenerator {
     settings: any
   ): Promise<Blob> {
     
-    // Request microphone access to create a MediaRecorder
-    // Note: This won't actually use the microphone, but enables MediaRecorder
-    const stream = await navigator.mediaDevices.getUserMedia({ 
-      audio: {
-        echoCancellation: false,
-        noiseSuppression: false,
-        autoGainControl: false
-      }
-    });
+    // Try to get system audio capture if available
+    let stream: MediaStream;
+    
+    try {
+      // Try to capture system audio (Chrome supports this in some cases)
+      stream = await navigator.mediaDevices.getDisplayMedia({ 
+        audio: {
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
+          channelCount: 2
+        },
+        video: false
+      });
+    } catch (error) {
+      // Fallback to microphone if system audio not available
+      console.log('System audio capture not available, using microphone:', error);
+      stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false
+        }
+      });
+    }
     
     this.mediaRecorder = new MediaRecorder(stream, {
       mimeType: 'audio/webm;codecs=opus'
@@ -143,7 +159,7 @@ export class AdvancedAudioGenerator {
       // Start recording
       this.mediaRecorder.start();
 
-      // Play the speech sequence while recording system audio
+      // Important: Use the same speech sequence with optimized settings for recording
       this.playSpeechSequence(englishText, chineseText, settings)
         .then(() => {
           // Stop recording after speech is complete
@@ -151,7 +167,7 @@ export class AdvancedAudioGenerator {
             if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
               this.mediaRecorder.stop();
             }
-          }, 1000);
+          }, 1500); // Give more time for audio to complete
         })
         .catch(reject);
     });
@@ -184,6 +200,19 @@ export class AdvancedAudioGenerator {
           const englishUtterance = new SpeechSynthesisUtterance(englishText);
           englishUtterance.rate = settings.voiceSpeed;
           englishUtterance.lang = 'en-US';
+          englishUtterance.volume = 1.0; // Maximum volume for recording
+          
+          // Try to use a high-quality English voice
+          const voices = synth.getVoices();
+          const englishVoice = voices.find(voice => 
+            voice.lang.includes('en-US') && 
+            (voice.name.includes('Microsoft') || voice.name.includes('Google') || voice.name.includes('Natural'))
+          ) || voices.find(voice => voice.lang.includes('en-US'));
+          
+          if (englishVoice) {
+            englishUtterance.voice = englishVoice;
+            console.log('Using English voice for recording:', englishVoice.name, englishVoice.lang);
+          }
           
           englishUtterance.onend = () => {
             // Step 2: Pause
@@ -199,16 +228,36 @@ export class AdvancedAudioGenerator {
           chineseUtterance.rate = settings.voiceSpeed;
           chineseUtterance.lang = 'zh-CN';
           
-          // Try to use the optimal Chinese voice
+          // Use the exact same voice selection logic as the interface
           const voices = synth.getVoices();
-          const chineseVoice = voices.find(voice => 
-            voice.name.includes('Xiaoxiao') || 
-            (voice.lang.includes('zh') && voice.name.includes('Microsoft'))
-          ) || voices.find(voice => voice.lang.includes('zh-CN'));
+          console.log('Available voices for recording:', voices.map(v => `${v.name} (${v.lang})`));
+          
+          // First priority: Microsoft Xiaoxiao Online (Natural)
+          let chineseVoice = voices.find(voice => 
+            voice.name.includes('Xiaoxiao') && voice.name.includes('Microsoft')
+          );
+          
+          // Second priority: Any Microsoft Chinese voice
+          if (!chineseVoice) {
+            chineseVoice = voices.find(voice => 
+              voice.lang.includes('zh') && voice.name.includes('Microsoft')
+            );
+          }
+          
+          // Third priority: Any Chinese voice
+          if (!chineseVoice) {
+            chineseVoice = voices.find(voice => voice.lang.includes('zh-CN'));
+          }
           
           if (chineseVoice) {
             chineseUtterance.voice = chineseVoice;
+            console.log('Using voice for recording:', chineseVoice.name, chineseVoice.lang);
+          } else {
+            console.log('No Chinese voice found for recording');
           }
+          
+          // Increase volume for better recording
+          chineseUtterance.volume = 1.0;
           
           chineseUtterance.onend = () => resolve();
           chineseUtterance.onerror = () => reject(new Error('Chinese speech synthesis failed'));

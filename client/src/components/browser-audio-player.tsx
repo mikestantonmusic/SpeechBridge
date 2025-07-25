@@ -147,8 +147,8 @@ export function BrowserAudioPlayer({ englishText, chineseText, settings, duratio
     
     try {
       toast({
-        title: "Capturing Spoken Audio",
-        description: "Recording actual English and Chinese speech with Microsoft Xiaoxiao voice...",
+        title: "Recording Audio",
+        description: "Attempting to capture system audio with the same Microsoft Xiaoxiao voice quality. May request microphone or screen sharing permission.",
       });
 
       // Use advanced audio generation to capture real speech
