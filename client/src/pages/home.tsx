@@ -165,6 +165,46 @@ export default function Home() {
       </header>
 
       <div className="max-w-6xl mx-auto px-4 py-8">
+        {/* Vocabulary Progress Widget */}
+        <div className="mb-8 bg-white rounded-xl shadow-lg p-6 border-2 border-blue-100">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 text-center">Learning Progress</h3>
+          <div className="flex items-center justify-center space-x-12">
+            <div className="text-center">
+              <div className="text-4xl font-bold text-blue-600">
+                {learnedCount * 10}
+              </div>
+              <div className="text-sm text-gray-600 mt-1">Words Learned</div>
+            </div>
+            <div className="h-16 w-px bg-gray-300"></div>
+            <div className="text-center">
+              <div className="text-4xl font-bold text-gray-700">
+                {totalWords}
+              </div>
+              <div className="text-sm text-gray-600 mt-1">Total Words</div>
+            </div>
+            <div className="h-16 w-px bg-gray-300"></div>
+            <div className="text-center">
+              <div className="text-4xl font-bold text-green-600">
+                {totalWords > 0 ? Math.round((learnedCount * 10 / totalWords) * 100) : 0}%
+              </div>
+              <div className="text-sm text-gray-600 mt-1">Complete</div>
+            </div>
+          </div>
+          
+          {/* Progress Bar */}
+          <div className="mt-6">
+            <div className="w-full bg-gray-200 rounded-full h-3">
+              <div 
+                className="bg-gradient-to-r from-blue-500 to-green-500 h-3 rounded-full transition-all duration-500"
+                style={{ width: `${totalWords > 0 ? (learnedCount * 10 / totalWords) * 100 : 0}%` }}
+              ></div>
+            </div>
+            <div className="text-center text-xs text-gray-500 mt-2">
+              {learnedCount} of {wordGroups.length} groups completed
+            </div>
+          </div>
+        </div>
+
         {/* Settings Panel */}
         <div className="mb-8">
           <SettingsCard
