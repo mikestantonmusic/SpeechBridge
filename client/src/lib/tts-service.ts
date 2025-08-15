@@ -1,84 +1,14 @@
-// Enhanced TTS service with multiple free Chinese TTS providers
+// Enhanced TTS service using browser Speech Synthesis API with optimized voice selection
 export class TTSService {
-  private static async tryVoiceRSS(text: string, language: string): Promise<Blob | null> {
-    try {
-      // VoiceRSS free API (requires key but has a generous free tier)
-      const response = await fetch('http://api.voicerss.org/', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        }
-      });
-      // This would need an API key, skip for now
-      return null;
-    } catch (error) {
-      console.log('VoiceRSS failed');
-      return null;
-    }
-  }
-
-  private static async tryTTSMaker(text: string, language: string): Promise<Blob | null> {
-    try {
-      // TTSMaker has a free tier with good Chinese voices
-      const response = await fetch('https://api.ttsmaker.com/v1/tts', {
-        method: 'POST',
-        mode: 'cors',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          text: text,
-          voice_id: language === 'zh-CN' ? 'zh-cn-XiaoxiaoNeural' : 'en-US-AriaNeural',
-          speed: 1.0,
-          volume: 100,
-          pitch: 0,
-          audio_format: 'mp3'
-        })
-      });
-      
-      if (response.ok) {
-        return await response.blob();
-      }
-    } catch (error) {
-      // Silently fail - CORS restrictions are common with free APIs
-      return null;
-    }
-  }
-
-  private static async tryResponseVoice(text: string, language: string): Promise<Blob | null> {
-    try {
-      // ResponseVoice has free Chinese TTS
-      const voiceId = language === 'zh-CN' ? 'Chinese_Female' : 'US_English_Female';
-      const response = await fetch(`https://responsevoice.org/responsivevoice/getvoice.php?t=${encodeURIComponent(text)}&tl=${language}&sv=&vn=&pitch=0.5&rate=0.5&vol=1&gender=female`, {
-        mode: 'cors'
-      });
-      
-      if (response.ok) {
-        return await response.blob();
-      }
-    } catch (error) {
-      // Silently fail - CORS restrictions are common with free APIs
-      return null;
-    }
-  }
-
-  static async generateSpeech(text: string, language: string, speed: number = 1.0, volume: number = 100): Promise<HTMLAudioElement | null> {
-    // Skip external TTS services for now due to CORS restrictions
-    // Browser speech synthesis with Microsoft voices works excellently
-    return null; // Will use browser speech synthesis with optimized voice selection
-  }
-
   static getBrowserVoices(): SpeechSynthesisVoice[] {
     if (!('speechSynthesis' in window)) return [];
     return speechSynthesis.getVoices();
   }
 
-
-
   static getBestChineseVoice(): SpeechSynthesisVoice | null {
     const voices = this.getBrowserVoices();
     
-    // Priority order for Chinese voices
+    // Priority order for Chinese voices (Microsoft Xiaoxiao is preferred)
     const chineseVoicePriority = [
       'Microsoft Xiaoxiao - Chinese (Simplified, PRC)',
       'Microsoft Kangkang - Chinese (Simplified, PRC)', 
@@ -107,6 +37,34 @@ export class TTSService {
     ) || null;
   }
 
+  static getBestEnglishVoice(): SpeechSynthesisVoice | null {
+    const voices = this.getBrowserVoices();
+    
+    // Priority order for English voices
+    const englishVoicePriority = [
+      'Microsoft David - English (United States)',
+      'Microsoft Zira - English (United States)',
+      'Google US English',
+      'en-US'
+    ];
+
+    for (const voiceName of englishVoicePriority) {
+      const voice = voices.find(v => 
+        v.name.includes(voiceName) || 
+        v.lang.includes(voiceName) ||
+        v.name.toLowerCase().includes(voiceName.toLowerCase())
+      );
+      if (voice) return voice;
+    }
+
+    // Fallback to any English voice
+    return voices.find(voice => 
+      voice.lang.includes('en-US') || 
+      voice.lang.includes('en') ||
+      voice.name.toLowerCase().includes('english')
+    ) || null;
+  }
+
   static async speakWithBestVoice(text: string, language: string, speed: number = 1.0, volume: number = 100): Promise<void> {
     return new Promise((resolve, reject) => {
       if (!('speechSynthesis' in window)) {
@@ -114,28 +72,82 @@ export class TTSService {
         return;
       }
 
+      // Stop any current speech
+      speechSynthesis.cancel();
+
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.rate = speed;
       utterance.volume = volume / 100;
+      utterance.lang = language;
       
       if (language === 'zh-CN') {
         const bestVoice = this.getBestChineseVoice();
         if (bestVoice) {
           utterance.voice = bestVoice;
-          console.log('Using optimized Chinese voice:', bestVoice.name, bestVoice.lang);
+          console.log('Using Chinese voice:', bestVoice.name, bestVoice.lang);
         }
       } else {
-        const voices = this.getBrowserVoices();
-        const englishVoice = voices.find(voice => 
-          voice.lang.includes('en-US') || voice.lang.includes('en')
-        );
-        if (englishVoice) utterance.voice = englishVoice;
+        const bestVoice = this.getBestEnglishVoice();
+        if (bestVoice) {
+          utterance.voice = bestVoice;
+          console.log('Using English voice:', bestVoice.name, bestVoice.lang);
+        }
       }
 
-      utterance.onend = () => resolve();
-      utterance.onerror = (event) => reject(event.error);
+      utterance.onend = () => {
+        console.log('Speech finished:', text);
+        resolve();
+      };
+      
+      utterance.onerror = (event) => {
+        console.error('Speech error:', event.error, 'for text:', text);
+        reject(new Error(event.error));
+      };
 
-      speechSynthesis.speak(utterance);
+      utterance.onstart = () => {
+        console.log('Speech started:', text);
+      };
+
+      try {
+        speechSynthesis.speak(utterance);
+      } catch (error) {
+        console.error('Speech synthesis error:', error);
+        reject(error);
+      }
     });
+  }
+
+  // Initialize voices by calling getVoices and waiting for voiceschanged event
+  static async initializeVoices(): Promise<void> {
+    return new Promise((resolve) => {
+      let voices = speechSynthesis.getVoices();
+      
+      if (voices.length > 0) {
+        console.log('Voices already loaded:', voices.length);
+        resolve();
+        return;
+      }
+      
+      const voicesChangedHandler = () => {
+        voices = speechSynthesis.getVoices();
+        if (voices.length > 0) {
+          console.log('Voices loaded:', voices.length);
+          speechSynthesis.removeEventListener('voiceschanged', voicesChangedHandler);
+          resolve();
+        }
+      };
+      
+      speechSynthesis.addEventListener('voiceschanged', voicesChangedHandler);
+      
+      // Timeout after 3 seconds
+      setTimeout(() => {
+        speechSynthesis.removeEventListener('voiceschanged', voicesChangedHandler);
+        resolve();
+      }, 3000);
+    });
+  }
+
+  static stopSpeech(): void {
+    speechSynthesis.cancel();
   }
 }

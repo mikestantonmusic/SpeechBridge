@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -23,7 +23,13 @@ export function VocabularyGroupCard({
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
   const [currentPhase, setCurrentPhase] = useState<"idle" | "english" | "pause" | "chinese">("idle");
+  const isPlayingRef = useRef(false);
   const { toast } = useToast();
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+  }, [isPlaying]);
 
   const isLearned = group.isLearned === 1;
 
@@ -31,12 +37,23 @@ export function VocabularyGroupCard({
     if (words.length === 0) return;
 
     try {
+      console.log('Starting audio playback for', words.length, 'words');
       setIsPlaying(true);
       setCurrentWordIndex(0);
 
-      for (let i = 0; i < words.length && isPlaying; i++) {
+      // Initialize voices first
+      await TTSService.initializeVoices();
+
+      for (let i = 0; i < words.length; i++) {
+        // Check if user stopped playback
+        if (!isPlayingRef.current) {
+          console.log('Playback stopped by user at word', i);
+          break;
+        }
+
         setCurrentWordIndex(i);
         const word = words[i];
+        console.log('Playing word:', word.englishText, '/', word.chineseText);
 
         // Determine language order
         const isChineseFirst = audioSettings.languageOrder === 'chinese-first';
@@ -47,19 +64,30 @@ export function VocabularyGroupCard({
 
         // Play first language
         setCurrentPhase(isChineseFirst ? "chinese" : "english");
-        await TTSService.speakWithBestVoice(firstText, firstLang, audioSettings.voiceSpeed, 75);
+        try {
+          await TTSService.speakWithBestVoice(firstText, firstLang, audioSettings.voiceSpeed, 75);
+        } catch (speechError) {
+          console.error('Speech error for first language:', speechError);
+          // Continue with second language even if first fails
+        }
         
-        if (!isPlaying) break;
+        // Check if user stopped playback
+        if (!isPlayingRef.current) break;
 
-        // Pause
+        // Pause between languages
         setCurrentPhase("pause");
         await new Promise(resolve => setTimeout(resolve, audioSettings.pauseDuration * 1000));
         
-        if (!isPlaying) break;
+        // Check if user stopped playback
+        if (!isPlayingRef.current) break;
 
         // Play second language
         setCurrentPhase(isChineseFirst ? "english" : "chinese");
-        await TTSService.speakWithBestVoice(secondText, secondLang, audioSettings.voiceSpeed, 75);
+        try {
+          await TTSService.speakWithBestVoice(secondText, secondLang, audioSettings.voiceSpeed, 75);
+        } catch (speechError) {
+          console.error('Speech error for second language:', speechError);
+        }
 
         // Short break between words (0.5 seconds)
         if (i < words.length - 1) {
@@ -67,6 +95,7 @@ export function VocabularyGroupCard({
         }
       }
 
+      console.log('Audio playback completed');
       setIsPlaying(false);
       setCurrentPhase("idle");
       setCurrentWordIndex(0);
@@ -75,6 +104,7 @@ export function VocabularyGroupCard({
       console.error("Playback error:", error);
       setIsPlaying(false);
       setCurrentPhase("idle");
+      setCurrentWordIndex(0);
       toast({
         title: "Audio Playback Failed",
         description: "Unable to play audio. Please check your browser's speech synthesis support.",
@@ -84,7 +114,8 @@ export function VocabularyGroupCard({
   };
 
   const stopPlayback = () => {
-    speechSynthesis.cancel();
+    console.log('Stopping audio playback');
+    TTSService.stopSpeech();
     setIsPlaying(false);
     setCurrentPhase("idle");
     setCurrentWordIndex(0);
