@@ -57,57 +57,105 @@ export function VocabularyGroupCard({
 
         setCurrentWordIndex(i);
         const word = words[i];
-        console.log('Playing word:', word.englishText, '/', word.chineseText);
-
-        // Determine language order
-        const isChineseFirst = audioSettings.languageOrder === 'chinese-first';
-        const firstText = isChineseFirst ? word.chineseText : word.englishText;
-        const firstLang = isChineseFirst ? 'zh-CN' : 'en-US';
-        const secondText = isChineseFirst ? word.englishText : word.chineseText;
-        const secondLang = isChineseFirst ? 'en-US' : 'zh-CN';
-
-        // Play English first
-        setCurrentPhase("english");
-        try {
-          await TTSService.speakWithBestVoice(word.englishText, 'en-US', audioSettings.voiceSpeed, 75);
-        } catch (speechError) {
-          console.error('Speech error for English:', speechError);
-        }
         
-        // Check if user stopped playback
-        if (!isPlayingRef.current) break;
+        // Randomly choose pattern for each word: 50% chance for each
+        const useEnglishFirst = Math.random() < 0.5;
+        console.log('Playing word:', word.englishText, '/', word.chineseText, 
+                   '- Pattern:', useEnglishFirst ? 'English → Chinese → Chinese' : 'Chinese → Chinese → English');
 
-        // Pause before first Chinese
-        setCurrentPhase("pause");
-        await new Promise(resolve => setTimeout(resolve, audioSettings.pauseDuration * 1000));
-        
-        // Check if user stopped playback
-        if (!isPlayingRef.current) break;
+        if (useEnglishFirst) {
+          // Pattern: English → Chinese → Chinese
+          
+          // Play English first
+          setCurrentPhase("english");
+          try {
+            await TTSService.speakWithBestVoice(word.englishText, 'en-US', audioSettings.voiceSpeed, 75);
+          } catch (speechError) {
+            console.error('Speech error for English:', speechError);
+          }
+          
+          // Check if user stopped playback
+          if (!isPlayingRef.current) break;
 
-        // Play Chinese first time
-        setCurrentPhase("chinese");
-        try {
-          await TTSService.speakWithBestVoice(word.chineseText, 'zh-CN', audioSettings.voiceSpeed, 75);
-        } catch (speechError) {
-          console.error('Speech error for Chinese (first):', speechError);
-        }
+          // Pause before first Chinese
+          setCurrentPhase("pause");
+          await new Promise(resolve => setTimeout(resolve, audioSettings.pauseDuration * 1000));
+          
+          // Check if user stopped playback
+          if (!isPlayingRef.current) break;
 
-        // Check if user stopped playback
-        if (!isPlayingRef.current) break;
+          // Play Chinese first time
+          setCurrentPhase("chinese");
+          try {
+            await TTSService.speakWithBestVoice(word.chineseText, 'zh-CN', audioSettings.voiceSpeed, 75);
+          } catch (speechError) {
+            console.error('Speech error for Chinese (first):', speechError);
+          }
 
-        // Pause before second Chinese
-        setCurrentPhase("pause");
-        await new Promise(resolve => setTimeout(resolve, audioSettings.pauseDuration * 1000));
-        
-        // Check if user stopped playback
-        if (!isPlayingRef.current) break;
+          // Check if user stopped playback
+          if (!isPlayingRef.current) break;
 
-        // Play Chinese second time
-        setCurrentPhase("chinese2");
-        try {
-          await TTSService.speakWithBestVoice(word.chineseText, 'zh-CN', audioSettings.voiceSpeed, 75);
-        } catch (speechError) {
-          console.error('Speech error for Chinese (second):', speechError);
+          // Pause before second Chinese
+          setCurrentPhase("pause");
+          await new Promise(resolve => setTimeout(resolve, audioSettings.pauseDuration * 1000));
+          
+          // Check if user stopped playback
+          if (!isPlayingRef.current) break;
+
+          // Play Chinese second time
+          setCurrentPhase("chinese2");
+          try {
+            await TTSService.speakWithBestVoice(word.chineseText, 'zh-CN', audioSettings.voiceSpeed, 75);
+          } catch (speechError) {
+            console.error('Speech error for Chinese (second):', speechError);
+          }
+          
+        } else {
+          // Pattern: Chinese → Chinese → English
+          
+          // Play Chinese first time
+          setCurrentPhase("chinese");
+          try {
+            await TTSService.speakWithBestVoice(word.chineseText, 'zh-CN', audioSettings.voiceSpeed, 75);
+          } catch (speechError) {
+            console.error('Speech error for Chinese (first):', speechError);
+          }
+
+          // Check if user stopped playback
+          if (!isPlayingRef.current) break;
+
+          // Pause before second Chinese
+          setCurrentPhase("pause");
+          await new Promise(resolve => setTimeout(resolve, audioSettings.pauseDuration * 1000));
+          
+          // Check if user stopped playback
+          if (!isPlayingRef.current) break;
+
+          // Play Chinese second time
+          setCurrentPhase("chinese2");
+          try {
+            await TTSService.speakWithBestVoice(word.chineseText, 'zh-CN', audioSettings.voiceSpeed, 75);
+          } catch (speechError) {
+            console.error('Speech error for Chinese (second):', speechError);
+          }
+
+          // Check if user stopped playback
+          if (!isPlayingRef.current) break;
+
+          // Pause before English
+          setCurrentPhase("pause");
+          await new Promise(resolve => setTimeout(resolve, audioSettings.pauseDuration * 1000));
+          
+          // Check if user stopped playback
+          if (!isPlayingRef.current) break;
+
+          // Play English last
+          setCurrentPhase("english");
+          try {
+            await TTSService.speakWithBestVoice(word.englishText, 'en-US', audioSettings.voiceSpeed, 75);
+          } catch (speechError) {
+            console.error('Speech error for English:', speechError);
+          }
         }
 
         // Longer break between words (2 seconds)

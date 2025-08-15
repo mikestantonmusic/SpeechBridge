@@ -32,7 +32,6 @@ export default function Home() {
 
   // Memoized stable sort to prevent reordering on status changes
   const wordGroups = useMemo(() => {
-    console.log('Sorting groups:', wordGroupsData.length, 'groups');
     return wordGroupsData.slice().sort((a, b) => a.id.localeCompare(b.id));
   }, [wordGroupsData]);
 
@@ -181,7 +180,7 @@ export default function Home() {
               Vocabulary Groups
             </h2>
             <div className="text-sm text-gray-500">
-              Click "Start Learning" for continuous loop: English → Chinese → Chinese (continues until stopped)
+              Click "Start Learning" for continuous loop with random patterns: "English → Chinese → Chinese" or "Chinese → Chinese → English" (continues until stopped)
             </div>
           </div>
 
