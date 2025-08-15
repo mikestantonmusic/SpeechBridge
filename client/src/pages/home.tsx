@@ -26,9 +26,14 @@ export default function Home() {
   });
 
   // Fetch word groups
-  const { data: wordGroups = [], isLoading: groupsLoading } = useQuery<WordGroup[]>({
+  const { data: wordGroupsData = [], isLoading: groupsLoading } = useQuery<WordGroup[]>({
     queryKey: ["/api/word-groups"],
   });
+
+  // Sort groups consistently by createdAt to maintain order
+  const wordGroups = wordGroupsData.slice().sort((a, b) => 
+    new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  );
 
   useEffect(() => {
     if (settingsData) {
@@ -86,25 +91,47 @@ export default function Home() {
     },
   });
 
-  // Toggle learned status mutation
+  // Toggle learned status mutation with optimistic updates
   const toggleLearnedMutation = useMutation({
     mutationFn: async ({ groupId, isLearned }: { groupId: string; isLearned: boolean }) => {
       const response = await apiRequest("PATCH", `/api/word-groups/${groupId}`, { isLearned });
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/word-groups"] });
-      toast({
-        title: "Group Status Updated",
-        description: "Learning status has been saved.",
-      });
+    onMutate: async ({ groupId, isLearned }) => {
+      // Cancel any outgoing refetches so they don't overwrite our optimistic update
+      await queryClient.cancelQueries({ queryKey: ["/api/word-groups"] });
+      
+      // Snapshot the previous value
+      const previousGroups = queryClient.getQueryData<WordGroup[]>(["/api/word-groups"]);
+      
+      // Optimistically update to the new value
+      if (previousGroups) {
+        queryClient.setQueryData<WordGroup[]>(["/api/word-groups"], 
+          previousGroups.map(group => 
+            group.id === groupId 
+              ? { ...group, isLearned: isLearned ? 1 : 0 }
+              : group
+          )
+        );
+      }
+      
+      // Return a context object with the snapshotted value
+      return { previousGroups };
     },
-    onError: (error) => {
+    onError: (err, variables, context) => {
+      // If the mutation fails, use the context returned from onMutate to roll back
+      if (context?.previousGroups) {
+        queryClient.setQueryData(["/api/word-groups"], context.previousGroups);
+      }
       toast({
         title: "Update Failed",
-        description: error.message,
+        description: "Learning status could not be saved.",
         variant: "destructive",
       });
+    },
+    onSettled: () => {
+      // Always refetch after error or success to ensure server state
+      queryClient.invalidateQueries({ queryKey: ["/api/word-groups"] });
     },
   });
 
