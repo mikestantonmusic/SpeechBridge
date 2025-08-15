@@ -22,7 +22,7 @@ export function VocabularyGroupCard({
 }: VocabularyGroupCardProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
-  const [currentPhase, setCurrentPhase] = useState<"idle" | "english" | "pause" | "chinese">("idle");
+  const [currentPhase, setCurrentPhase] = useState<"idle" | "english" | "pause" | "chinese" | "chinese2">("idle");
   const isPlayingRef = useRef(false);
   const { toast } = useToast();
 
@@ -62,36 +62,54 @@ export function VocabularyGroupCard({
         const secondText = isChineseFirst ? word.englishText : word.chineseText;
         const secondLang = isChineseFirst ? 'en-US' : 'zh-CN';
 
-        // Play first language
-        setCurrentPhase(isChineseFirst ? "chinese" : "english");
+        // Play English first
+        setCurrentPhase("english");
         try {
-          await TTSService.speakWithBestVoice(firstText, firstLang, audioSettings.voiceSpeed, 75);
+          await TTSService.speakWithBestVoice(word.englishText, 'en-US', audioSettings.voiceSpeed, 75);
         } catch (speechError) {
-          console.error('Speech error for first language:', speechError);
-          // Continue with second language even if first fails
+          console.error('Speech error for English:', speechError);
         }
         
         // Check if user stopped playback
         if (!isPlayingRef.current) break;
 
-        // Pause between languages
+        // Pause before first Chinese
         setCurrentPhase("pause");
         await new Promise(resolve => setTimeout(resolve, audioSettings.pauseDuration * 1000));
         
         // Check if user stopped playback
         if (!isPlayingRef.current) break;
 
-        // Play second language
-        setCurrentPhase(isChineseFirst ? "english" : "chinese");
+        // Play Chinese first time
+        setCurrentPhase("chinese");
         try {
-          await TTSService.speakWithBestVoice(secondText, secondLang, audioSettings.voiceSpeed, 75);
+          await TTSService.speakWithBestVoice(word.chineseText, 'zh-CN', audioSettings.voiceSpeed, 75);
         } catch (speechError) {
-          console.error('Speech error for second language:', speechError);
+          console.error('Speech error for Chinese (first):', speechError);
         }
 
-        // Short break between words (0.5 seconds)
+        // Check if user stopped playback
+        if (!isPlayingRef.current) break;
+
+        // Pause before second Chinese
+        setCurrentPhase("pause");
+        await new Promise(resolve => setTimeout(resolve, audioSettings.pauseDuration * 1000));
+        
+        // Check if user stopped playback
+        if (!isPlayingRef.current) break;
+
+        // Play Chinese second time
+        setCurrentPhase("chinese2");
+        try {
+          await TTSService.speakWithBestVoice(word.chineseText, 'zh-CN', audioSettings.voiceSpeed, 75);
+        } catch (speechError) {
+          console.error('Speech error for Chinese (second):', speechError);
+        }
+
+        // Longer break between words (2 seconds)
         if (i < words.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 500));
+          setCurrentPhase("pause");
+          await new Promise(resolve => setTimeout(resolve, 2000));
         }
       }
 
@@ -128,7 +146,8 @@ export function VocabularyGroupCard({
   const getPhaseText = () => {
     if (currentPhase === "idle") return "Ready";
     if (currentPhase === "english") return "English";
-    if (currentPhase === "chinese") return "中文";
+    if (currentPhase === "chinese") return "中文 (1st)";
+    if (currentPhase === "chinese2") return "中文 (2nd)";
     if (currentPhase === "pause") return "Pause";
     return "";
   };
@@ -190,7 +209,7 @@ export function VocabularyGroupCard({
               </div>
               <div className="text-center">
                 <div className="text-sm text-gray-600 mb-1">中文</div>
-                <div className={`text-lg font-medium ${currentPhase === 'chinese' ? 'text-blue-600' : 'text-gray-800'}`}>
+                <div className={`text-lg font-medium ${(currentPhase === 'chinese' || currentPhase === 'chinese2') ? 'text-blue-600' : 'text-gray-800'}`}>
                   {currentWord.chineseText}
                 </div>
               </div>
@@ -228,7 +247,7 @@ export function VocabularyGroupCard({
               Status: {isLearned ? "Learned ✓" : "Not learned"}
             </span>
             <span className="text-gray-500">
-              Audio Order: {audioSettings.languageOrder === 'chinese-first' ? 'Chinese → English' : 'English → Chinese'}
+              Pattern: English → Chinese → Chinese (2x repetition)
             </span>
           </div>
         </div>

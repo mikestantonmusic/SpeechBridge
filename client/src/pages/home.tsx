@@ -171,7 +171,7 @@ export default function Home() {
               Vocabulary Groups
             </h2>
             <div className="text-sm text-gray-500">
-              Click "Start Learning" to hear each word with {audioSettings.languageOrder === 'chinese-first' ? 'Chinese → English' : 'English → Chinese'} pronunciation
+              Click "Start Learning" to hear: English → Chinese → Chinese (repeated for better learning)
             </div>
           </div>
 
