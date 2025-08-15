@@ -48,9 +48,35 @@ export class DatabaseStorage implements IStorage {
     try {
       const groups = await db
         .select()
-        .from(wordGroups)
-        .orderBy(asc(wordGroups.createdAt));
-      return groups;
+        .from(wordGroups);
+      
+      // Sort HSK groups in proper order: HSK 1 1, HSK 1 2, ..., HSK 6 42, then other groups
+      return groups.sort((a, b) => {
+        const hskRegexA = /^HSK (\d+) (\d+)$/.exec(a.title);
+        const hskRegexB = /^HSK (\d+) (\d+)$/.exec(b.title);
+        
+        // If both are HSK groups, sort by level then by group number
+        if (hskRegexA && hskRegexB) {
+          const [, levelA, groupA] = hskRegexA;
+          const [, levelB, groupB] = hskRegexB;
+          
+          // First by HSK level
+          const levelDiff = parseInt(levelA) - parseInt(levelB);
+          if (levelDiff !== 0) return levelDiff;
+          
+          // Then by group number within the level
+          return parseInt(groupA) - parseInt(groupB);
+        }
+        
+        // If only A is HSK, put it first
+        if (hskRegexA && !hskRegexB) return -1;
+        
+        // If only B is HSK, put it first
+        if (!hskRegexA && hskRegexB) return 1;
+        
+        // If neither is HSK, sort by creation time
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      });
     } catch (error) {
       console.error('Database error in getAllWordGroups:', error);
       throw error;

@@ -222,106 +222,81 @@ export function VocabularyGroupCard({
 
   return (
     <Card className={`w-full transition-all duration-200 ${isLearned ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200'}`}>
-      <CardContent className="p-6">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-3">
-            <BookOpen className="w-6 h-6 text-primary" />
+      <CardContent className="p-3">
+        {/* Header with Start Learning button inline */}
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center space-x-2">
+            <BookOpen className="w-4 h-4 text-primary" />
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">{group.title}</h3>
-              <p className="text-sm text-gray-600">{group.description}</p>
+              <h3 className="text-sm font-semibold text-gray-900">{group.title}</h3>
+              <p className="text-xs text-gray-600">{group.description}</p>
             </div>
           </div>
           
           <div className="flex items-center space-x-2">
-            <Badge variant={isLearned ? "default" : "secondary"} className="text-xs">
+            <Badge variant={isLearned ? "default" : "secondary"} className="text-xs px-2 py-0.5">
               {words.length} words
             </Badge>
+            {!isPlaying ? (
+              <Button
+                onClick={playWordSequence}
+                size="sm"
+                className="text-xs px-3 py-1.5"
+                disabled={words.length === 0}
+              >
+                <Play className="w-3 h-3 mr-1" />
+                Start Learning
+              </Button>
+            ) : (
+              <Button
+                onClick={stopPlayback}
+                variant="destructive"
+                size="sm"
+                className="text-xs px-3 py-1.5"
+              >
+                <Square className="w-3 h-3 mr-1" />
+                Stop
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="sm"
               onClick={toggleLearned}
-              className={`p-2 ${isLearned ? 'text-green-600 hover:text-green-700' : 'text-gray-400 hover:text-gray-600'}`}
+              className={`p-1.5 ${isLearned ? 'text-green-600 hover:text-green-700' : 'text-gray-400 hover:text-gray-600'}`}
             >
-              {isLearned ? <CheckCircle className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
+              {isLearned ? <CheckCircle className="w-4 h-4" /> : <Circle className="w-4 h-4" />}
             </Button>
           </div>
         </div>
 
-        {/* Current Word Display */}
+        {/* Current Word Display - Only when playing */}
         {isPlaying && currentWord && (
-          <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-blue-700">
-                Word {currentWordIndex + 1} of {words.length}
+          <div className="mt-2 p-2 bg-blue-50 rounded border border-blue-200">
+            <div className="flex items-center justify-between text-xs mb-1">
+              <span className="font-medium text-blue-700">
+                Word {currentWordIndex + 1}/{words.length}
               </span>
-              <Badge variant="outline" className="text-xs">
+              <Badge variant="outline" className="text-xs py-0 px-1">
                 {getPhaseText()}
               </Badge>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-2">
               <div className="text-center">
-                <div className="text-sm text-gray-600 mb-1">English</div>
-                <div className={`text-lg font-medium ${currentPhase === 'english' ? 'text-blue-600' : 'text-gray-800'}`}>
+                <div className={`text-sm font-medium ${currentPhase === 'english' ? 'text-blue-600' : 'text-gray-800'}`}>
                   {currentWord.englishText}
                 </div>
               </div>
               <div className="text-center">
-                <div className="text-sm text-gray-600 mb-1">中文</div>
-                <div className={`text-lg font-medium ${(currentPhase === 'chinese' || currentPhase === 'chinese2') ? 'text-blue-600' : 'text-gray-800'}`}>
+                <div className={`text-sm font-medium ${(currentPhase === 'chinese' || currentPhase === 'chinese2') ? 'text-blue-600' : 'text-gray-800'}`}>
                   {currentWord.chineseText}
                 </div>
-                <div className="text-sm text-gray-500 mt-1">
+                <div className="text-xs text-gray-500">
                   {currentWord.pinyinText}
                 </div>
               </div>
             </div>
           </div>
         )}
-
-        {/* Control Buttons */}
-        <div className="flex items-center justify-center space-x-3">
-          {!isPlaying ? (
-            <Button
-              onClick={playWordSequence}
-              className="inline-flex items-center px-6 py-2 bg-primary text-white rounded-lg hover:bg-blue-600 transition-colors"
-              disabled={words.length === 0}
-            >
-              <Play className="w-4 h-4 mr-2" />
-              Start Learning
-            </Button>
-          ) : (
-            <Button
-              onClick={stopPlayback}
-              variant="destructive"
-              className="inline-flex items-center px-6 py-2"
-            >
-              <Square className="w-4 h-4 mr-2" />
-              Stop
-            </Button>
-          )}
-        </div>
-
-        {/* Learning Status and Controls */}
-        <div className="mt-4 pt-4 border-t border-gray-200">
-          <div className="flex items-center justify-between">
-            <Button
-              onClick={toggleLearned}
-              variant={isLearned ? "default" : "outline"}
-              size="sm"
-              className={`px-4 py-2 ${
-                isLearned 
-                  ? "bg-green-500 hover:bg-green-600 text-white" 
-                  : "border-gray-300 text-gray-700 hover:bg-gray-50"
-              }`}
-            >
-              {isLearned ? "✓ Learned" : "Not Learned"}
-            </Button>
-            <span className="text-sm text-gray-500">
-              Pattern: English → Chinese → Chinese (2x repetition)
-            </span>
-          </div>
-        </div>
       </CardContent>
     </Card>
   );
