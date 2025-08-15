@@ -30,9 +30,9 @@ export default function Home() {
     queryKey: ["/api/word-groups"],
   });
 
-  // Memoized stable sort to prevent reordering on status changes
+  // Use the server-provided ordering (no client-side re-sorting)
   const wordGroups = useMemo(() => {
-    return wordGroupsData.slice().sort((a, b) => a.id.localeCompare(b.id));
+    return wordGroupsData; // Server already sorts these properly
   }, [wordGroupsData]);
 
   useEffect(() => {
