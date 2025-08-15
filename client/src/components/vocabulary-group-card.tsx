@@ -44,7 +44,11 @@ export function VocabularyGroupCard({
       // Initialize voices first
       await TTSService.initializeVoices();
 
-      for (let i = 0; i < words.length; i++) {
+      // Continuous loop until user stops
+      while (isPlayingRef.current) {
+        console.log('Starting new loop cycle');
+        
+        for (let i = 0; i < words.length; i++) {
         // Check if user stopped playback
         if (!isPlayingRef.current) {
           console.log('Playback stopped by user at word', i);
@@ -107,9 +111,16 @@ export function VocabularyGroupCard({
         }
 
         // Longer break between words (2 seconds)
-        if (i < words.length - 1) {
+        if (i < words.length - 1 && isPlayingRef.current) {
           setCurrentPhase("pause");
           await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      }
+
+        // Short break between complete cycles (1 second)
+        if (isPlayingRef.current) {
+          setCurrentPhase("pause");
+          await new Promise(resolve => setTimeout(resolve, 1000));
         }
       }
 
@@ -240,13 +251,22 @@ export function VocabularyGroupCard({
           )}
         </div>
 
-        {/* Learning Status */}
+        {/* Learning Status and Controls */}
         <div className="mt-4 pt-4 border-t border-gray-200">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-600">
-              Status: {isLearned ? "Learned ✓" : "Not learned"}
-            </span>
-            <span className="text-gray-500">
+          <div className="flex items-center justify-between">
+            <Button
+              onClick={toggleLearned}
+              variant={isLearned ? "default" : "outline"}
+              size="sm"
+              className={`px-4 py-2 ${
+                isLearned 
+                  ? "bg-green-500 hover:bg-green-600 text-white" 
+                  : "border-gray-300 text-gray-700 hover:bg-gray-50"
+              }`}
+            >
+              {isLearned ? "✓ Learned" : "Not Learned"}
+            </Button>
+            <span className="text-sm text-gray-500">
               Pattern: English → Chinese → Chinese (2x repetition)
             </span>
           </div>

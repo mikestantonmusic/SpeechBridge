@@ -171,7 +171,7 @@ export default function Home() {
               Vocabulary Groups
             </h2>
             <div className="text-sm text-gray-500">
-              Click "Start Learning" to hear: English → Chinese → Chinese (repeated for better learning)
+              Click "Start Learning" for continuous loop: English → Chinese → Chinese (continues until stopped)
             </div>
           </div>
 
