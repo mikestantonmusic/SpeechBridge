@@ -1,86 +1,130 @@
-import { type User, type InsertUser, type Translation, type InsertTranslation, type AudioSettings, type InsertAudioSettings } from "@shared/schema";
-import { randomUUID } from "crypto";
+import type { 
+  User, 
+  InsertUser, 
+  WordGroup, 
+  InsertWordGroup,
+  VocabularyWord,
+  InsertVocabularyWord,
+  AudioSettings, 
+  InsertAudioSettings 
+} from "@shared/schema";
+import { users, wordGroups, vocabularyWords, audioSettings } from "@shared/schema";
+import { db } from "./db";
+import { eq, asc } from "drizzle-orm";
 
 export interface IStorage {
+  // User methods
+  createUser(user: InsertUser): Promise<User>;
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
   
-  createTranslation(translation: InsertTranslation): Promise<Translation>;
-  getTranslations(limit?: number): Promise<Translation[]>;
-  getTranslation(id: string): Promise<Translation | undefined>;
+  // Word group methods
+  getAllWordGroups(): Promise<WordGroup[]>;
+  getWordsForGroup(groupId: string): Promise<VocabularyWord[]>;
+  updateGroupLearnedStatus(groupId: string, isLearned: boolean): Promise<WordGroup>;
   
-  getAudioSettings(): Promise<AudioSettings | undefined>;
+  // Audio settings methods
+  getAudioSettings(): Promise<AudioSettings>;
   updateAudioSettings(settings: InsertAudioSettings): Promise<AudioSettings>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
-  private translations: Map<string, Translation>;
-  private audioSettings: AudioSettings | undefined;
-
-  constructor() {
-    this.users = new Map();
-    this.translations = new Map();
-    // Initialize default audio settings
-    this.audioSettings = {
-      id: randomUUID(),
-      pauseDuration: 1.0,
-      voiceSpeed: 1.0,
-      audioQuality: "high",
-    };
+export class DatabaseStorage implements IStorage {
+  async createUser(user: InsertUser): Promise<User> {
+    const [created] = await db.insert(users).values(user).returning();
+    return created;
   }
 
   async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
-  }
-
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
-  }
-
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
     return user;
   }
 
-  async createTranslation(insertTranslation: InsertTranslation): Promise<Translation> {
-    const id = randomUUID();
-    const translation: Translation = {
-      ...insertTranslation,
-      id,
-      createdAt: new Date(),
-    };
-    this.translations.set(id, translation);
-    return translation;
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
   }
 
-  async getTranslations(limit: number = 10): Promise<Translation[]> {
-    const allTranslations = Array.from(this.translations.values());
-    return allTranslations
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-      .slice(0, limit);
+  async getAllWordGroups(): Promise<WordGroup[]> {
+    try {
+      const groups = await db
+        .select()
+        .from(wordGroups)
+        .orderBy(asc(wordGroups.createdAt));
+      return groups;
+    } catch (error) {
+      console.error('Database error in getAllWordGroups:', error);
+      throw error;
+    }
   }
 
-  async getTranslation(id: string): Promise<Translation | undefined> {
-    return this.translations.get(id);
+  async getWordsForGroup(groupId: string): Promise<VocabularyWord[]> {
+    try {
+      const words = await db
+        .select()
+        .from(vocabularyWords)
+        .where(eq(vocabularyWords.groupId, groupId))
+        .orderBy(asc(vocabularyWords.orderIndex));
+      return words;
+    } catch (error) {
+      console.error('Database error in getWordsForGroup:', error);
+      throw error;
+    }
   }
 
-  async getAudioSettings(): Promise<AudioSettings | undefined> {
-    return this.audioSettings;
+  async updateGroupLearnedStatus(groupId: string, isLearned: boolean): Promise<WordGroup> {
+    try {
+      const [updatedGroup] = await db
+        .update(wordGroups)
+        .set({ isLearned: isLearned ? 1 : 0 })
+        .where(eq(wordGroups.id, groupId))
+        .returning();
+      return updatedGroup;
+    } catch (error) {
+      console.error('Database error in updateGroupLearnedStatus:', error);
+      throw error;
+    }
   }
 
-  async updateAudioSettings(settings: InsertAudioSettings): Promise<AudioSettings> {
-    this.audioSettings = {
-      ...this.audioSettings!,
-      ...settings,
-    };
-    return this.audioSettings;
+  async getAudioSettings(): Promise<AudioSettings> {
+    try {
+      let [settings] = await db.select().from(audioSettings).limit(1);
+      
+      if (!settings) {
+        // Create default settings if none exist
+        [settings] = await db
+          .insert(audioSettings)
+          .values({
+            pauseDuration: 1.0,
+            voiceSpeed: 1.0,
+            audioQuality: "high",
+            languageOrder: "english-first",
+          })
+          .returning();
+      }
+      
+      return settings;
+    } catch (error) {
+      console.error('Database error in getAudioSettings:', error);
+      throw error;
+    }
+  }
+
+  async updateAudioSettings(newSettings: InsertAudioSettings): Promise<AudioSettings> {
+    try {
+      const currentSettings = await this.getAudioSettings();
+      
+      const [updated] = await db
+        .update(audioSettings)
+        .set(newSettings)
+        .where(eq(audioSettings.id, currentSettings.id))
+        .returning();
+      
+      return updated;
+    } catch (error) {
+      console.error('Database error in updateAudioSettings:', error);
+      throw error;
+    }
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();

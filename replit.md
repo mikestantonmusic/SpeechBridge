@@ -1,8 +1,8 @@
-# Text-to-Speech Translation App
+# Chinese Vocabulary Learning App
 
 ## Overview
 
-This is a full-stack web application that provides English-to-Chinese translation with enhanced audio generation capabilities. Users can input English text, get Chinese translations via multiple free translation services, and generate high-quality audio playback with customizable settings like pause duration, voice speed, and Chinese voice selection. The app works completely free without requiring any API keys.
+This is a full-stack web application that provides structured Chinese vocabulary learning with high-quality audio pronunciation. The app features 5 vocabulary groups with 10 words each (50 total words), allowing users to practice pronunciation with configurable playback order and settings. Users can mark groups as "learned" or "not learned" and listen to sequential playback of each word with English and Chinese pronunciation using high-quality Microsoft Xiaoxiao voice.
 
 ## User Preferences
 

@@ -9,12 +9,20 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
 });
 
-export const translations = pgTable("translations", {
+export const wordGroups = pgTable("word_groups", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: text("title").notNull(),
+  description: text("description"),
+  isLearned: integer("is_learned").default(0).notNull(), // 0 = not learned, 1 = learned
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const vocabularyWords = pgTable("vocabulary_words", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  groupId: varchar("group_id").notNull().references(() => wordGroups.id),
   englishText: text("english_text").notNull(),
   chineseText: text("chinese_text").notNull(),
-  audioFileUrl: text("audio_file_url"),
-  duration: real("duration"),
+  orderIndex: integer("order_index").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -31,11 +39,17 @@ export const insertUserSchema = createInsertSchema(users).pick({
   password: true,
 });
 
-export const insertTranslationSchema = createInsertSchema(translations).pick({
+export const insertWordGroupSchema = createInsertSchema(wordGroups).pick({
+  title: true,
+  description: true,
+  isLearned: true,
+});
+
+export const insertVocabularyWordSchema = createInsertSchema(vocabularyWords).pick({
+  groupId: true,
   englishText: true,
   chineseText: true,
-  audioFileUrl: true,
-  duration: true,
+  orderIndex: true,
 });
 
 export const insertAudioSettingsSchema = createInsertSchema(audioSettings).pick({
@@ -47,7 +61,9 @@ export const insertAudioSettingsSchema = createInsertSchema(audioSettings).pick(
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
-export type Translation = typeof translations.$inferSelect;
-export type InsertTranslation = z.infer<typeof insertTranslationSchema>;
+export type WordGroup = typeof wordGroups.$inferSelect;
+export type InsertWordGroup = z.infer<typeof insertWordGroupSchema>;
+export type VocabularyWord = typeof vocabularyWords.$inferSelect;
+export type InsertVocabularyWord = z.infer<typeof insertVocabularyWordSchema>;
 export type AudioSettings = typeof audioSettings.$inferSelect;
 export type InsertAudioSettings = z.infer<typeof insertAudioSettingsSchema>;
