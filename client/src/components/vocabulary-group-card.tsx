@@ -60,7 +60,7 @@ export function VocabularyGroupCard({
         
         // Randomly choose pattern for each word: 50% chance for each
         const useEnglishFirst = Math.random() < 0.5;
-        console.log('Playing word:', word.englishText, '/', word.chineseText, 
+        console.log('Playing word:', word.englishText, '/', word.chineseText, '(' + word.pinyinText + ')', 
                    '- Pattern:', useEnglishFirst ? 'English → Chinese → Chinese' : 'Chinese → Chinese → English');
 
         if (useEnglishFirst) {
@@ -270,6 +270,9 @@ export function VocabularyGroupCard({
                 <div className="text-sm text-gray-600 mb-1">中文</div>
                 <div className={`text-lg font-medium ${(currentPhase === 'chinese' || currentPhase === 'chinese2') ? 'text-blue-600' : 'text-gray-800'}`}>
                   {currentWord.chineseText}
+                </div>
+                <div className="text-sm text-gray-500 mt-1">
+                  {currentWord.pinyinText}
                 </div>
               </div>
             </div>

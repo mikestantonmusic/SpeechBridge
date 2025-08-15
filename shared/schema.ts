@@ -22,6 +22,7 @@ export const vocabularyWords = pgTable("vocabulary_words", {
   groupId: varchar("group_id").notNull().references(() => wordGroups.id),
   englishText: text("english_text").notNull(),
   chineseText: text("chinese_text").notNull(),
+  pinyinText: text("pinyin_text").notNull(),
   orderIndex: integer("order_index").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -49,6 +50,7 @@ export const insertVocabularyWordSchema = createInsertSchema(vocabularyWords).pi
   groupId: true,
   englishText: true,
   chineseText: true,
+  pinyinText: true,
   orderIndex: true,
 });
 
