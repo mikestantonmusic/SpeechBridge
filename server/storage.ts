@@ -78,8 +78,6 @@ export class DatabaseStorage implements IStorage {
         return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
       });
 
-      // Debug logging - show first 5 groups
-      console.log('First 5 groups after sorting:', sorted.slice(0, 5).map(g => g.title));
       return sorted;
     } catch (error) {
       console.error('Database error in getAllWordGroups:', error);

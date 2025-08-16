@@ -2,7 +2,15 @@
 
 ## Overview
 
-This is a full-stack web application that provides structured Chinese vocabulary learning with high-quality audio pronunciation. The app features 5 vocabulary groups with 10 words each (50 total words), allowing users to practice pronunciation with configurable playback order and settings. Users can mark groups as "learned" or "not learned" and listen to sequential playback of each word with English and Chinese pronunciation using high-quality Microsoft Xiaoxiao voice.
+This is a comprehensive full-stack web application that provides structured Chinese vocabulary learning with high-quality audio pronunciation. The app features 362 vocabulary groups with authentic HSK-level vocabulary totaling 3,610 words across HSK levels 1-6. Users can practice pronunciation with configurable playback order and settings, mark groups as "learned" or "not learned," and listen to sequential playback with English-Chinese pronunciation using high-quality Microsoft Xiaoxiao voice.
+
+## Recent Changes (August 15, 2025)
+
+- ✅ **Successfully expanded to 3,610 words** - Exceeded 3,500 word target with authentic HSK vocabulary
+- ✅ **Removed all non-HSK groups** - Eliminated original groups like "Basic Greetings" and "Numbers & Time" to focus exclusively on authentic HSK content
+- ✅ **Fixed group ordering issue** - Resolved client-side sorting that was overriding server-side HSK sequential ordering
+- ✅ **HSK level distribution**: HSK 1 (155 words), HSK 2 (155 words), HSK 3 (760 words), HSK 4 (600 words), HSK 5 (900 words), HSK 6 (1,040 words)
+- ✅ **Proper HSK sequencing** - Groups now display in correct order: HSK 1-1, HSK 1-2, etc.
 
 ## User Preferences
 
