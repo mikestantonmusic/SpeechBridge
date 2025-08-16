@@ -65,6 +65,13 @@ export class TTSService {
     ) || null;
   }
 
+  // Stop any current speech
+  static stopSpeech() {
+    if ('speechSynthesis' in window) {
+      speechSynthesis.cancel();
+    }
+  }
+
   static async speakWithBestVoice(text: string, language: string, speed: number = 1.0, volume: number = 100): Promise<void> {
     return new Promise((resolve, reject) => {
       if (!('speechSynthesis' in window)) {
@@ -73,7 +80,7 @@ export class TTSService {
       }
 
       // Stop any current speech
-      speechSynthesis.cancel();
+      this.stopSpeech();
 
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.rate = speed;
@@ -145,9 +152,5 @@ export class TTSService {
         resolve();
       }, 3000);
     });
-  }
-
-  static stopSpeech(): void {
-    speechSynthesis.cancel();
   }
 }

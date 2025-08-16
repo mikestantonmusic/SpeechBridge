@@ -2,8 +2,10 @@ import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { VocabularyGroupCard } from "@/components/vocabulary-group-card";
 import { SettingsCard } from "@/components/settings-card";
+import { PlaybackModeSelector } from "@/components/playback-mode-selector";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { AudioManager } from "@/lib/audio-manager";
 import { Languages, BookOpen } from "lucide-react";
 import type { AudioSettings, WordGroup, VocabularyWord } from "@shared/schema";
 
@@ -41,7 +43,7 @@ export default function Home() {
     }
   }, [settingsData]);
 
-  // Fetch words for each group
+  // Fetch words for each group and initialize AudioManager
   useEffect(() => {
     const fetchWordsForGroups = async () => {
       if (wordGroups.length === 0) return;
@@ -63,10 +65,15 @@ export default function Home() {
         wordsMap[groupId] = words;
       });
       setGroupWords(wordsMap);
+      
+      // Initialize AudioManager with data
+      if (audioSettings) {
+        AudioManager.initializeData(wordGroups, wordsMap, audioSettings);
+      }
     };
 
     fetchWordsForGroups();
-  }, [wordGroups]);
+  }, [wordGroups, audioSettings]);
 
   // Update audio settings mutation
   const updateSettingsMutation = useMutation({
@@ -213,6 +220,13 @@ export default function Home() {
           />
         </div>
 
+        {/* Playback Mode Selector */}
+        <div className="mb-8">
+          <PlaybackModeSelector
+            isReviewAvailable={learnedCount > 0}
+          />
+        </div>
+
         {/* Vocabulary Groups */}
         <div className="space-y-6">
           <div className="flex items-center justify-between">
@@ -220,7 +234,7 @@ export default function Home() {
               Vocabulary Groups
             </h2>
             <div className="text-sm text-gray-500">
-              Click "Start Learning" for continuous loop with random patterns: "English → Chinese → Chinese" or "Chinese → Chinese → English" (continues until stopped)
+              Choose playback mode above, then click "Start Learning" for random patterns: "English → Chinese → Chinese" or "Chinese → Chinese → English"
             </div>
           </div>
 
