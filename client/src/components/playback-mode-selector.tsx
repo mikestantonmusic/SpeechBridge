@@ -28,24 +28,24 @@ export function PlaybackModeSelector({ isReviewAvailable }: PlaybackModeSelector
       id: "loop" as PlaybackMode,
       name: "Loop",
       icon: Repeat,
-      description: "Plays the selected group over and over until stopped",
-      color: "bg-blue-100 text-blue-800 border-blue-300",
+      description: "Plays selected group continuously until stopped",
+      color: "bg-blue-200 text-blue-900 border-blue-400",
       activeColor: "bg-blue-600 text-white border-blue-600"
     },
     {
       id: "sequential" as PlaybackMode,
       name: "Sequential", 
       icon: SkipForward,
-      description: "Plays groups one after another from the selected group onwards",
-      color: "bg-green-100 text-green-800 border-green-300",
+      description: "Auto-advances to next group after completion",
+      color: "bg-green-200 text-green-900 border-green-400",
       activeColor: "bg-green-600 text-white border-green-600"
     },
     {
       id: "review" as PlaybackMode,
       name: "Review",
       icon: Shuffle,
-      description: "Randomly plays groups marked as 'Learned' for review practice",
-      color: "bg-purple-100 text-purple-800 border-purple-300",
+      description: "Randomly plays learned groups for practice",
+      color: "bg-purple-200 text-purple-900 border-purple-400",
       activeColor: "bg-purple-600 text-white border-purple-600",
       disabled: !isReviewAvailable
     }
@@ -69,9 +69,9 @@ export function PlaybackModeSelector({ isReviewAvailable }: PlaybackModeSelector
               <Button
                 variant="outline"
                 size="lg"
-                className={`w-full h-auto p-4 flex flex-col items-center space-y-3 border-2 transition-all ${
+                className={`w-full h-auto p-4 flex flex-col items-center space-y-2 border-2 transition-all min-h-[120px] ${
                   isDisabled 
-                    ? "opacity-50 cursor-not-allowed bg-gray-50 text-gray-400 border-gray-200"
+                    ? "opacity-50 cursor-not-allowed bg-gray-100 text-gray-500 border-gray-300"
                     : isActive 
                       ? mode.activeColor
                       : `${mode.color} hover:${mode.activeColor.replace('600', '500')}`
@@ -79,15 +79,15 @@ export function PlaybackModeSelector({ isReviewAvailable }: PlaybackModeSelector
                 onClick={() => !isDisabled && handleModeChange(mode.id)}
                 disabled={isDisabled}
               >
-                <Icon className="w-8 h-8" />
+                <Icon className="w-6 h-6 flex-shrink-0" />
                 <div className="text-center">
-                  <div className="font-semibold text-sm mb-1">{mode.name}</div>
-                  <div className="text-xs leading-tight opacity-90">
+                  <div className="font-bold text-sm mb-1">{mode.name}</div>
+                  <div className="text-xs leading-snug font-medium">
                     {mode.description}
                   </div>
                 </div>
                 {isActive && !isDisabled && (
-                  <Badge variant="secondary" className="absolute -top-2 -right-2 bg-white text-gray-800 border">
+                  <Badge variant="secondary" className="absolute -top-2 -right-2 bg-white text-gray-800 border shadow-sm">
                     Active
                   </Badge>
                 )}
