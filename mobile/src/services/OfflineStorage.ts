@@ -121,6 +121,9 @@ class OfflineStorageService {
 
       // Save words to local storage
       await this.saveGroupWords(group.id, words);
+      
+      progress.progress = 75;
+      this.notifyDownloadProgress(progress);
 
       // Update downloaded groups list
       const downloadedGroups = await this.getDownloadedGroups();
@@ -138,7 +141,10 @@ class OfflineStorageService {
       progress.status = 'completed';
       this.notifyDownloadProgress(progress);
 
+      console.log(`Successfully downloaded group: ${group.name} with ${words.length} words`);
+
     } catch (error) {
+      console.error(`Failed to download group ${group.name}:`, error);
       progress.status = 'error';
       progress.error = error instanceof Error ? error.message : 'Download failed';
       this.notifyDownloadProgress(progress);

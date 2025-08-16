@@ -2,7 +2,8 @@
 import { WordGroup, VocabularyWord, AudioSettings } from '../types';
 
 // Note: Update this URL with your actual Replit app URL when testing
-const API_BASE_URL = 'https://chinese-vocabulary-learning-app.your-username.repl.co/api';
+// For development, you can get your Replit URL from the webview
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://chinese-vocabulary-learning-app.your-username.repl.co/api';
 
 class VocabularyAPIService {
   private baseUrl: string;

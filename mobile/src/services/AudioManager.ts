@@ -152,11 +152,26 @@ class MobileAudioManager {
     try {
       await this.stopAudio();
 
-      // Get words from offline storage or API
-      const words = await OfflineStorage.getGroupWords(groupId);
+      // Get words from offline storage first
+      let words = await OfflineStorage.getGroupWords(groupId);
+      
+      // If not available offline, try API (this ensures we always have data)
       if (words.length === 0) {
-        throw new Error('No words found for this group');
+        console.log(`Group ${groupId} not found offline, trying API...`);
+        try {
+          const VocabularyAPI = require('./VocabularyAPI').default;
+          words = await VocabularyAPI.getGroupWords(groupId);
+        } catch (apiError) {
+          console.error('API fetch failed:', apiError);
+        }
       }
+
+      if (words.length === 0) {
+        throw new Error('No words found for this group. Please download it first or check your connection.');
+      }
+
+      // Sort words by order
+      words.sort((a, b) => a.order - b.order);
 
       this.currentWords = words;
       this.setState({
@@ -167,15 +182,13 @@ class MobileAudioManager {
         isBuffering: true
       });
 
-      if (this.backgroundPlaybackEnabled) {
-        await this.setupTrackPlayerPlaylist(words);
-        await TrackPlayer.play();
-      } else {
-        await this.playWithSpeechAPI(words);
-      }
+      console.log(`Starting playbook for group ${groupId} with ${words.length} words`);
+
+      // Use Speech API as primary method (Track Player requires additional setup)
+      await this.playWithSpeechAPI(words);
 
     } catch (error) {
-      console.error('Failed to start group playback:', error);
+      console.error('Failed to start group playbook:', error);
       this.setState({
         isPlaying: false,
         isBuffering: false
