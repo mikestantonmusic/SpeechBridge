@@ -140,7 +140,7 @@ class AudioManagerClass {
 
         // Short pause between words
         if (this.isPlayingRef && this.state.currentGroupId === groupId) {
-          await this.pause(500); // 0.5 second between words
+          await this.pause(1500); // 1.5 seconds between words
         }
       }
     }
@@ -176,7 +176,7 @@ class AudioManagerClass {
 
         // Short pause between words
         if (this.isPlayingRef) {
-          await this.pause(500);
+          await this.pause(1500);
         }
       }
 
@@ -221,7 +221,7 @@ class AudioManagerClass {
 
         // Short pause between words
         if (this.isPlayingRef) {
-          await this.pause(500);
+          await this.pause(1500);
         }
       }
 
