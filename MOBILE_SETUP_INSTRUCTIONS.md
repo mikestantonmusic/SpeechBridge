@@ -10,7 +10,7 @@
 
 ```bash
 # Navigate to mobile folder
-cd mobile/chinese-vocab-test
+cd mobile
 
 # Install Expo CLI globally  
 npm install -g @expo/cli
@@ -27,13 +27,15 @@ npx expo start
 2. **Scan QR Code** that appears in the Replit Shell
 3. **Your mobile app opens** on your phone instantly!
 
-## Method 2: Using Replit's Dropdown Menu (Even Easier)
+## Method 2: Using Replit's Dropdown Menu (If Available)
 
-### If you see dropdown menus in Replit:
-1. Click dropdown menu in your workspace
-2. Select "EAS init" to set up mobile development
-3. Select "EAS update" to prepare the app
-4. Select "EAS publish preview iOS" for iPhone testing
+### If you see dropdown menus in your Replit workspace:
+1. Look for a dropdown menu (usually near the "Run" button)
+2. If available, select "EAS init" to set up mobile development
+3. If available, select "EAS update" to prepare the app
+4. If available, select "EAS publish preview iOS" for iPhone testing
+
+**Note: These dropdown options may not be available in all Replit workspaces. If you don't see them, use Method 1 instead.**
 
 ## What You'll See
 
@@ -77,9 +79,14 @@ Once the mobile app works on your phone:
 ## Troubleshooting
 
 ### If Commands Don't Work:
-- Make sure you're in the correct folder: `cd mobile/chinese-vocab-test`
+- Make sure you're in the correct folder: `cd mobile`
 - Try: `npm cache clean --force` then reinstall
 - Use Replit's built-in package installer instead
+
+### If You Don't See EAS Dropdown Menus:
+- This is completely normal - not all Replit workspaces have these dropdown options
+- Just use Method 1 (command line) instead - it works exactly the same way
+- The dropdown menus are just shortcuts for the command line tools
 
 ### If Phone Can't Connect:
 - Make sure phone and computer are on same WiFi
