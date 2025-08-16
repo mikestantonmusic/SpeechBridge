@@ -17,15 +17,36 @@ The mobile conversion requires a different approach than initially planned:
 2. **Progressive Enhancement**: Start with core vocabulary display, then add audio features
 3. **Expo Web Preview**: Use Expo's web preview mode for initial testing before mobile
 
-## Current Recommendation
-**Use the web app** while the mobile version is being optimized. The web app has all the features you requested:
-- 3,610 authentic HSK words
-- Audio pronunciation with 2-second pauses
-- Three playback modes
-- Background audio continuation
-- Proper HSK level organization
+## Method 1: Test the Simplified Mobile App (Recommended)
 
-The mobile app will be completed in the next development phase once the technical issues are resolved.
+Here's exactly how to run Expo using the shell:
+
+### Step 1: Open Replit Shell
+- At the bottom of your Replit screen, click the "Shell" tab
+- You'll see a command prompt like: `~/Chinese-Vocabulary-Learning-App$`
+
+### Step 2: Run These Commands (Copy/Paste One by One)
+
+```bash
+# Navigate to mobile folder
+cd mobile
+
+# Install Expo CLI globally (only needed once)
+npm install -g @expo/cli
+
+# Start the Expo development server
+npx expo start
+```
+
+### Step 3: Test on Your Phone
+1. **Install Expo Go app** on your phone from App Store/Google Play Store
+2. **Scan the QR code** that appears in the Replit Shell
+3. **Your mobile app opens** on your phone!
+
+The simplified mobile app should now work without the "Something went wrong" error.
+
+## Current Recommendation
+The simplified mobile app is ready for testing. Once you confirm it works, I can add the real HSK vocabulary data and audio features.
 
 ## Method 2: Using Replit's Dropdown Menu (If Available)
 
