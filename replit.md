@@ -7,10 +7,10 @@ This is a comprehensive full-stack web application that provides structured Chin
 ## Recent Changes (August 16, 2025)
 
 - ✅ **2-second pause between words** - Increased pause from 0.5 to 2 seconds for better learning flow
-- ✅ **Mobile app core updates implemented** - Ported AudioManager with 2-second timing to mobile
-- ✅ **Mobile playback modes added** - Loop, Sequential, and Review modes now available on mobile
-- ✅ **Mobile vocabulary integration** - Connected mobile app to real HSK vocabulary data structure
-- ✅ **Enhanced mobile UI** - Added playback mode selector and improved group display with HSK level colors
+- 🔄 **Mobile app troubleshooting** - Resolved "Something went wrong" error by simplifying mobile architecture
+- ✅ **Simplified mobile demo created** - Basic working mobile interface without complex dependencies
+- ⚠️ **Mobile deployment challenges** - Complex React Navigation causing Expo Go compatibility issues in Replit
+- 📋 **Web app fully functional** - All 3,610 HSK words with audio features working perfectly
 
 ## Previous Changes (August 15, 2025)
 

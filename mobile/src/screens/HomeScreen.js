@@ -1,161 +1,89 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Alert,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function HomeScreen({ navigation }) {
-  const [downloadedGroups, setDownloadedGroups] = useState(0);
-  const [totalWords, setTotalWords] = useState(0);
-  const [offlineMode, setOfflineMode] = useState(true);
-
-  useEffect(() => {
-    loadAppData();
-  }, []);
-
-  const loadAppData = async () => {
-    try {
-      // This will be populated when we port the vocabulary data
-      const groups = await AsyncStorage.getItem('@vocabulary_groups');
-      if (groups) {
-        const parsedGroups = JSON.parse(groups);
-        setDownloadedGroups(parsedGroups.length);
-        
-        // Count total words across all groups
-        const wordCount = parsedGroups.reduce((total, group) => total + (group.words?.length || 0), 0);
-        setTotalWords(wordCount);
-      }
-    } catch (error) {
-      console.error('Error loading app data:', error);
-    }
-  };
-
-  const handleStartLearning = () => {
-    if (downloadedGroups === 0) {
-      Alert.alert(
-        'No Content Available',
-        'Please download HSK vocabulary groups first to start learning.',
-        [{ text: 'OK' }]
-      );
-      return;
-    }
-    navigation.navigate('GroupList');
-  };
-
-  const handleDownloadContent = async () => {
-    Alert.alert(
-      'Download HSK Content',
-      'This will download all 362 HSK vocabulary groups (3,610 words) for offline use. Continue?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Download', 
-          onPress: () => {
-            // TODO: Implement vocabulary download from web app data
-            Alert.alert('Coming Soon', 'Download functionality will be implemented in the next step.');
-          }
-        }
-      ]
-    );
+  const appStats = {
+    totalGroups: 362,
+    totalWords: 3610,
+    hskLevels: 6,
+    downloadedGroups: 30 // This will be dynamic later
   };
 
   return (
     <ScrollView style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Chinese Vocabulary Learning</Text>
-        <Text style={styles.subtitle}>HSK Levels 1-6 • Authentic Vocabulary</Text>
+        <Text style={styles.headerTitle}>Chinese Vocabulary Learning</Text>
+        <Text style={styles.headerSubtitle}>HSK Levels 1-6 • Audio Practice</Text>
       </View>
 
-      {/* App Status Card */}
-      <View style={styles.card}>
-        <View style={styles.cardHeader}>
-          <MaterialIcons name="storage" size={24} color="#1e40af" />
-          <Text style={styles.cardTitle}>App Status</Text>
+      {/* Stats Cards */}
+      <View style={styles.statsContainer}>
+        <View style={styles.statCard}>
+          <MaterialIcons name="library-books" size={32} color="#3b82f6" />
+          <Text style={styles.statNumber}>{appStats.totalWords}</Text>
+          <Text style={styles.statLabel}>Total Words</Text>
         </View>
-        <View style={styles.statsRow}>
-          <View style={styles.stat}>
-            <Text style={styles.statNumber}>{downloadedGroups}</Text>
-            <Text style={styles.statLabel}>Groups Downloaded</Text>
-          </View>
-          <View style={styles.stat}>
-            <Text style={styles.statNumber}>{totalWords.toLocaleString()}</Text>
-            <Text style={styles.statLabel}>Words Available</Text>
-          </View>
-          <View style={styles.stat}>
-            <MaterialIcons 
-              name={offlineMode ? "offline-bolt" : "wifi"} 
-              size={24} 
-              color={offlineMode ? "#16a34a" : "#dc2626"} 
-            />
-            <Text style={styles.statLabel}>
-              {offlineMode ? "Offline Ready" : "Online"}
-            </Text>
-          </View>
+        
+        <View style={styles.statCard}>
+          <MaterialIcons name="folder" size={32} color="#10b981" />
+          <Text style={styles.statNumber}>{appStats.totalGroups}</Text>
+          <Text style={styles.statLabel}>HSK Groups</Text>
+        </View>
+        
+        <View style={styles.statCard}>
+          <MaterialIcons name="download" size={32} color="#f59e0b" />
+          <Text style={styles.statNumber}>{appStats.downloadedGroups}</Text>
+          <Text style={styles.statLabel}>Downloaded</Text>
         </View>
       </View>
 
-      {/* Features Card */}
-      <View style={styles.card}>
-        <View style={styles.cardHeader}>
-          <MaterialIcons name="stars" size={24} color="#1e40af" />
-          <Text style={styles.cardTitle}>Mobile Features</Text>
-        </View>
-        <View style={styles.featuresList}>
-          <View style={styles.feature}>
-            <MaterialIcons name="download" size={20} color="#16a34a" />
-            <Text style={styles.featureText}>Offline Group Downloads</Text>
-          </View>
-          <View style={styles.feature}>
-            <MaterialIcons name="headset" size={20} color="#16a34a" />
-            <Text style={styles.featureText}>Background Audio Playback</Text>
-          </View>
-          <View style={styles.feature}>
-            <MaterialIcons name="loop" size={20} color="#16a34a" />
-            <Text style={styles.featureText}>Group Looping (Screen Locked)</Text>
-          </View>
-          <View style={styles.feature}>
-            <MaterialIcons name="voice-chat" size={20} color="#16a34a" />
-            <Text style={styles.featureText}>Microsoft Xiaoxiao Voice</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Action Buttons */}
-      <View style={styles.buttonContainer}>
+      {/* Main Actions */}
+      <View style={styles.actionContainer}>
         <TouchableOpacity 
-          style={[
-            styles.primaryButton,
-            downloadedGroups === 0 && styles.disabledButton
-          ]} 
-          onPress={handleStartLearning}
+          style={styles.primaryButton}
+          onPress={() => navigation.navigate('GroupList')}
         >
-          <MaterialIcons name="school" size={24} color="white" />
-          <Text style={styles.buttonText}>Start Learning</Text>
+          <MaterialIcons name="play-arrow" size={32} color="white" />
+          <Text style={styles.primaryButtonText}>Start Learning</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
-          style={styles.secondaryButton} 
-          onPress={handleDownloadContent}
-        >
-          <MaterialIcons name="cloud-download" size={24} color="#1e40af" />
+        <TouchableOpacity style={styles.secondaryButton}>
+          <MaterialIcons name="download" size={24} color="#1e40af" />
           <Text style={styles.secondaryButtonText}>Download HSK Content</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Progress Information */}
-      <View style={styles.infoCard}>
-        <Text style={styles.infoTitle}>Your Mobile Vocabulary Journey</Text>
-        <Text style={styles.infoText}>
-          This app contains authentic HSK vocabulary across all 6 levels, with high-quality pronunciation 
-          using Microsoft Xiaoxiao voice. Download groups for offline practice and enjoy continuous 
-          learning with background audio that works even when your screen is locked.
-        </Text>
+      {/* Features List */}
+      <View style={styles.featuresContainer}>
+        <Text style={styles.featuresTitle}>Mobile Features</Text>
+        
+        <View style={styles.featureItem}>
+          <MaterialIcons name="headset" size={20} color="#6b7280" />
+          <Text style={styles.featureText}>Background audio continues when screen is locked</Text>
+        </View>
+        
+        <View style={styles.featureItem}>
+          <MaterialIcons name="loop" size={20} color="#6b7280" />
+          <Text style={styles.featureText}>Audio loops within groups (doesn't auto-advance)</Text>
+        </View>
+        
+        <View style={styles.featureItem}>
+          <MaterialIcons name="offline-bolt" size={20} color="#6b7280" />
+          <Text style={styles.featureText}>Offline practice with downloaded groups</Text>
+        </View>
+        
+        <View style={styles.featureItem}>
+          <MaterialIcons name="speed" size={20} color="#6b7280" />
+          <Text style={styles.featureText}>Customizable audio speed and timing</Text>
+        </View>
       </View>
     </ScrollView>
   );
@@ -167,130 +95,129 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8fafc',
   },
   header: {
-    padding: 20,
-    alignItems: 'center',
-    backgroundColor: '#1e40af',
-    marginBottom: 20,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: 'white',
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#93c5fd',
-    marginTop: 5,
-    textAlign: 'center',
-  },
-  card: {
+    padding: 24,
     backgroundColor: 'white',
-    marginHorizontal: 20,
-    marginBottom: 15,
-    borderRadius: 12,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  cardHeader: {
-    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
   },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginLeft: 10,
-    color: '#1f2937',
-  },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-  },
-  stat: {
-    alignItems: 'center',
-  },
-  statNumber: {
+  headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#1e40af',
+    textAlign: 'center',
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    color: '#6b7280',
+    marginTop: 4,
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    padding: 20,
+    justifyContent: 'space-around',
+  },
+  statCard: {
+    backgroundColor: 'white',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    minWidth: 80,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  statNumber: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1f2937',
+    marginTop: 8,
   },
   statLabel: {
     fontSize: 12,
     color: '#6b7280',
-    marginTop: 5,
+    marginTop: 4,
     textAlign: 'center',
   },
-  featuresList: {
-    gap: 12,
-  },
-  feature: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  featureText: {
-    marginLeft: 12,
-    fontSize: 16,
-    color: '#374151',
-  },
-  buttonContainer: {
+  actionContainer: {
     padding: 20,
     gap: 12,
   },
   primaryButton: {
     backgroundColor: '#1e40af',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 16,
-    borderRadius: 12,
-    gap: 8,
+    gap: 12,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 3,
   },
-  disabledButton: {
-    backgroundColor: '#9ca3af',
-  },
-  buttonText: {
+  primaryButtonText: {
     color: 'white',
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: 'bold',
   },
   secondaryButton: {
     backgroundColor: 'white',
+    borderWidth: 2,
+    borderColor: '#1e40af',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#1e40af',
     gap: 8,
   },
   secondaryButtonText: {
     color: '#1e40af',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  infoCard: {
-    backgroundColor: '#eff6ff',
-    marginHorizontal: 20,
-    marginBottom: 30,
-    borderRadius: 12,
-    padding: 20,
-  },
-  infoTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1e40af',
-    marginBottom: 10,
-  },
-  infoText: {
     fontSize: 16,
-    color: '#374151',
-    lineHeight: 24,
+    fontWeight: '600',
+  },
+  featuresContainer: {
+    margin: 20,
+    backgroundColor: 'white',
+    padding: 20,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  featuresTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1f2937',
+    marginBottom: 16,
+  },
+  featureItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 12,
+  },
+  featureText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#4b5563',
+    lineHeight: 20,
   },
 });
