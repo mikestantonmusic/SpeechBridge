@@ -77,8 +77,9 @@ class AudioManagerClass {
 
   // Start playing a specific group
   async startGroupPlayback(groupId: string) {
-    // Stop any existing playback
+    // Stop any existing playback and wait for it to fully stop
     this.stopAudio();
+    await TTSService.waitForSpeechReady();
 
     const words = this.groupWords[groupId];
     if (!words || words.length === 0 || !this.audioSettings) {
@@ -97,6 +98,9 @@ class AudioManagerClass {
     try {
       // Initialize voices first
       await TTSService.initializeVoices();
+      
+      // Extra safety: ensure no speech is running
+      await TTSService.waitForSpeechReady();
 
       // Start playback based on mode
       switch (this.state.playbackMode) {
@@ -278,6 +282,9 @@ class AudioManagerClass {
   // Speak text and update phase
   private async speakWithPhase(text: string, language: string, phase: AudioState['currentPhase']) {
     if (!this.audioSettings) return;
+    
+    // Ensure previous speech is fully stopped before starting new speech
+    await TTSService.waitForSpeechReady();
     
     this.setState({ currentPhase: phase });
     try {

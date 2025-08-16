@@ -65,11 +65,43 @@ export class TTSService {
     ) || null;
   }
 
-  // Stop any current speech
+  // Stop any current speech and wait for it to fully stop
   static stopSpeech() {
     if ('speechSynthesis' in window) {
       speechSynthesis.cancel();
+      // Ensure all speech is fully stopped
+      while (speechSynthesis.speaking) {
+        speechSynthesis.cancel();
+      }
     }
+  }
+
+  // Wait for speech synthesis to be ready and stopped
+  static async waitForSpeechReady(): Promise<void> {
+    return new Promise((resolve) => {
+      if (!('speechSynthesis' in window)) {
+        resolve();
+        return;
+      }
+
+      // If already ready, resolve immediately
+      if (!speechSynthesis.speaking && !speechSynthesis.pending) {
+        resolve();
+        return;
+      }
+
+      // Wait for speech to stop
+      const checkReady = () => {
+        if (!speechSynthesis.speaking && !speechSynthesis.pending) {
+          resolve();
+        } else {
+          speechSynthesis.cancel();
+          setTimeout(checkReady, 50);
+        }
+      };
+      
+      checkReady();
+    });
   }
 
   static async speakWithBestVoice(text: string, language: string, speed: number = 1.0, volume: number = 100): Promise<void> {
