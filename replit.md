@@ -4,7 +4,15 @@
 
 This is a comprehensive full-stack web application that provides structured Chinese vocabulary learning with high-quality audio pronunciation. The app features 362 vocabulary groups with authentic HSK-level vocabulary totaling 3,610 words across HSK levels 1-6. Users can practice pronunciation with configurable playback order and settings, mark groups as "learned" or "not learned," and listen to sequential playback with English-Chinese pronunciation using high-quality Microsoft Xiaoxiao voice.
 
-## Recent Changes (August 15, 2025)
+## Recent Changes (August 16, 2025)
+
+- ✅ **2-second pause between words** - Increased pause from 0.5 to 2 seconds for better learning flow
+- ✅ **Mobile app core updates implemented** - Ported AudioManager with 2-second timing to mobile
+- ✅ **Mobile playback modes added** - Loop, Sequential, and Review modes now available on mobile
+- ✅ **Mobile vocabulary integration** - Connected mobile app to real HSK vocabulary data structure
+- ✅ **Enhanced mobile UI** - Added playback mode selector and improved group display with HSK level colors
+
+## Previous Changes (August 15, 2025)
 
 - ✅ **Successfully expanded to 3,610 words** - Exceeded 3,500 word target with authentic HSK vocabulary
 - ✅ **Removed all non-HSK groups** - Eliminated original groups like "Basic Greetings" and "Numbers & Time" to focus exclusively on authentic HSK content
@@ -18,7 +26,7 @@ Preferred communication style: Simple, everyday language.
 
 ## System Architecture
 
-The application follows a modern full-stack architecture with clear separation between frontend and backend:
+The application follows a modern full-stack architecture with clear separation between frontend, backend, and mobile components:
 
 ### Frontend Architecture
 - **Framework**: React with TypeScript
@@ -33,6 +41,14 @@ The application follows a modern full-stack architecture with clear separation b
 - **API Style**: RESTful endpoints
 - **Database ORM**: Drizzle ORM with PostgreSQL support
 - **Session Storage**: In-memory storage with fallback to database
+
+### Mobile Architecture
+- **Framework**: React Native with Expo
+- **Audio System**: Expo Speech API with advanced AudioManager
+- **Offline Storage**: AsyncStorage for vocabulary caching
+- **Navigation**: React Navigation 6 with stack navigator
+- **Audio Timing**: 2-second pauses between words, matching web app
+- **Playback Modes**: Loop (default), Sequential, and Review modes
 
 ## Key Components
 

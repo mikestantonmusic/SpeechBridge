@@ -7,13 +7,16 @@ import {
   Alert,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { audioManager } from '../lib/AudioManager';
+import { vocabularyAPI } from '../lib/VocabularyData';
 
 export default function VocabularyScreen({ route, navigation }) {
   const { groupId, groupName } = route.params;
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [playbackMode, setPlaybackMode] = useState('English → Chinese → Chinese');
+  const [playbackMode, setPlaybackMode] = useState('loop');
   const [words, setWords] = useState([]);
+  const [audioState, setAudioState] = useState(null);
 
   useEffect(() => {
     // Load vocabulary words for this group
@@ -21,44 +24,48 @@ export default function VocabularyScreen({ route, navigation }) {
     
     // Set up the header with group name
     navigation.setOptions({ title: groupName });
+
+    // Set up audio manager listener
+    const handleAudioStateChange = (state) => {
+      setAudioState(state);
+      setCurrentWordIndex(state.currentWordIndex);
+      setIsPlaying(state.currentGroupId === groupId && state.currentPhase !== 'idle');
+    };
+
+    audioManager.addListener(handleAudioStateChange);
+
+    // Cleanup on unmount
+    return () => {
+      audioManager.removeListener(handleAudioStateChange);
+      audioManager.stopAudio();
+    };
   }, [groupId, groupName, navigation]);
 
   const loadGroupWords = async () => {
-    // TODO: Load actual words from AsyncStorage
-    // For now, using placeholder data
-    const placeholderWords = [
-      {
-        id: 1,
-        english: 'father',
-        chinese: '爸爸',
-        pinyin: 'bàba'
-      },
-      {
-        id: 2,
-        english: 'mother', 
-        chinese: '妈妈',
-        pinyin: 'māma'
-      },
-      {
-        id: 3,
-        english: 'son',
-        chinese: '儿子', 
-        pinyin: 'érzi'
+    try {
+      const groupWords = await vocabularyAPI.fetchGroupWords(groupId);
+      setWords(groupWords);
+      
+      // Load vocabulary data into audio manager
+      const allGroups = await vocabularyAPI.fetchGroups();
+      const allGroupWords = {};
+      for (const group of allGroups) {
+        allGroupWords[group.id] = await vocabularyAPI.fetchGroupWords(group.id);
       }
-    ];
-    setWords(placeholderWords);
+      await audioManager.loadVocabulary(allGroups, allGroupWords);
+    } catch (error) {
+      console.error('Failed to load group words:', error);
+      Alert.alert('Error', 'Failed to load vocabulary words');
+    }
   };
 
-  const handlePlayPause = () => {
+  const handlePlayPause = async () => {
     if (words.length === 0) return;
     
-    setIsPlaying(!isPlaying);
-    
-    if (!isPlaying) {
-      Alert.alert(
-        'Audio Playback',
-        'Background audio playback will be implemented with react-native-track-player in the next phase.'
-      );
+    if (isPlaying) {
+      await audioManager.stopAudio();
+    } else {
+      await audioManager.startAudio(groupId);
     }
   };
 
@@ -75,14 +82,14 @@ export default function VocabularyScreen({ route, navigation }) {
   };
 
   const togglePlaybackMode = () => {
-    const modes = [
-      'English → Chinese → Chinese',
-      'Chinese → Chinese → English', 
-      'Chinese → English → Chinese'
-    ];
+    const modes = ['loop', 'sequential', 'review'];
+    const modeNames = ['Loop', 'Sequential', 'Review'];
     const currentIndex = modes.indexOf(playbackMode);
     const nextIndex = (currentIndex + 1) % modes.length;
-    setPlaybackMode(modes[nextIndex]);
+    const newMode = modes[nextIndex];
+    
+    setPlaybackMode(newMode);
+    audioManager.setPlaybackMode(newMode);
   };
 
   const currentWord = words[currentWordIndex];
@@ -114,9 +121,9 @@ export default function VocabularyScreen({ route, navigation }) {
 
       {/* Word Display */}
       <View style={styles.wordCard}>
-        <Text style={styles.englishWord}>{currentWord.english}</Text>
-        <Text style={styles.chineseWord}>{currentWord.chinese}</Text>
-        <Text style={styles.pinyin}>({currentWord.pinyin})</Text>
+        <Text style={styles.englishWord}>{currentWord.englishText}</Text>
+        <Text style={styles.chineseWord}>{currentWord.chineseText}</Text>
+        <Text style={styles.pinyin}>({currentWord.pinyinText})</Text>
       </View>
 
       {/* Audio Controls */}
@@ -163,7 +170,9 @@ export default function VocabularyScreen({ route, navigation }) {
         onPress={togglePlaybackMode}
       >
         <MaterialIcons name="repeat" size={20} color="#1e40af" />
-        <Text style={styles.modeText}>{playbackMode}</Text>
+        <Text style={styles.modeText}>
+          {playbackMode === 'loop' ? 'Loop' : playbackMode === 'sequential' ? 'Sequential' : 'Review'}
+        </Text>
       </TouchableOpacity>
 
       {/* Loop Mode Info */}

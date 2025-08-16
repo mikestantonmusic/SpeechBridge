@@ -8,11 +8,15 @@ import {
   Alert,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { vocabularyAPI } from '../lib/VocabularyData';
+import { audioManager } from '../lib/AudioManager';
+import PlaybackModeSelector from '../components/PlaybackModeSelector';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function GroupListScreen({ navigation }) {
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [playbackMode, setPlaybackMode] = useState('loop');
 
   useEffect(() => {
     loadGroups();
@@ -20,31 +24,14 @@ export default function GroupListScreen({ navigation }) {
 
   const loadGroups = async () => {
     try {
-      // This will be populated when we port the vocabulary data
-      const storedGroups = await AsyncStorage.getItem('@vocabulary_groups');
-      if (storedGroups) {
-        setGroups(JSON.parse(storedGroups));
-      } else {
-        // Placeholder data for now - will be replaced with real HSK data
-        setGroups([
-          {
-            id: '1',
-            name: 'HSK 1-1',
-            level: 1,
-            wordCount: 10,
-            isDownloaded: false,
-            isLearned: false,
-          },
-          {
-            id: '2',
-            name: 'HSK 1-2',
-            level: 1,
-            wordCount: 10,
-            isDownloaded: false,
-            isLearned: false,
-          }
-        ]);
-      }
+      const vocabularyGroups = await vocabularyAPI.fetchGroups();
+      setGroups(vocabularyGroups.map(group => ({
+        ...group,
+        name: group.title,
+        level: group.hskLevel || 1,
+        isDownloaded: true, // For demo, all groups are "downloaded"
+        isLearned: group.isLearned === 1
+      })));
       setLoading(false);
     } catch (error) {
       console.error('Error loading groups:', error);
@@ -70,18 +57,6 @@ export default function GroupListScreen({ navigation }) {
   };
 
   const handleStartGroup = (group) => {
-    if (!group.isDownloaded) {
-      Alert.alert(
-        'Group Not Downloaded',
-        'Please download this group first for offline practice.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Download Now', onPress: () => handleDownloadGroup(group.id) }
-        ]
-      );
-      return;
-    }
-
     navigation.navigate('Vocabulary', { 
       groupId: group.id, 
       groupName: group.name 
@@ -97,10 +72,15 @@ export default function GroupListScreen({ navigation }) {
     setGroups(updatedGroups);
     
     try {
-      await AsyncStorage.setItem('@vocabulary_groups', JSON.stringify(updatedGroups));
+      await vocabularyAPI.updateGroupStatus(groupId, updatedGroups.find(g => g.id === groupId)?.isLearned);
     } catch (error) {
       console.error('Error saving group status:', error);
     }
+  };
+
+  const handlePlaybackModeChange = (mode) => {
+    setPlaybackMode(mode);
+    audioManager.setPlaybackMode(mode);
   };
 
   const getHSKLevelColor = (level) => {
@@ -202,9 +182,14 @@ export default function GroupListScreen({ navigation }) {
           {groups.length} HSK Groups Available
         </Text>
         <Text style={styles.headerSubtext}>
-          Tap groups to download for offline practice
+          Choose your learning mode and start practicing
         </Text>
       </View>
+
+      <PlaybackModeSelector 
+        playbackMode={playbackMode}
+        onModeChange={handlePlaybackModeChange}
+      />
 
       <FlatList
         data={groups}
