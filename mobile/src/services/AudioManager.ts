@@ -1,15 +1,8 @@
 // Mobile Audio Manager with background playback and offline support
-import { Audio } from 'expo-av';
 import * as Speech from 'expo-speech';
-import TrackPlayer, { 
-  Track, 
-  State as TrackPlayerState,
-  Event,
-  AppKilledPlaybackBehavior,
-  Capability
-} from 'react-native-track-player';
 import { VocabularyWord, AudioState, PlaybackMode, AudioSettings } from '../types';
 import OfflineStorage from './OfflineStorage';
+import BackgroundAudio from './BackgroundAudioService';
 
 class MobileAudioManager {
   private state: AudioState = {
@@ -25,70 +18,15 @@ class MobileAudioManager {
   private listeners: ((state: AudioState) => void)[] = [];
   private currentWords: VocabularyWord[] = [];
   private audioSettings: AudioSettings | null = null;
-  private isInitialized = false;
   private backgroundPlaybackEnabled = false;
 
   constructor() {
-    this.initializeTrackPlayer();
+    this.checkBackgroundAudioAvailability();
   }
 
-  // Initialize TrackPlayer for background audio
-  private async initializeTrackPlayer(): Promise<void> {
-    try {
-      await TrackPlayer.setupPlayer({
-        maxCacheSize: 1024 * 10, // 10MB cache
-      });
-
-      await TrackPlayer.updateOptions({
-        android: {
-          appKilledPlaybackBehavior: AppKilledPlaybackBehavior.ContinuePlayback,
-        },
-        capabilities: [
-          Capability.Play,
-          Capability.Pause,
-          Capability.SkipToNext,
-          Capability.SkipToPrevious,
-          Capability.SeekTo,
-        ],
-        compactCapabilities: [
-          Capability.Play,
-          Capability.Pause,
-          Capability.SkipToNext,
-        ],
-      });
-
-      // Set up event listeners
-      TrackPlayer.addEventListener(Event.PlaybackState, this.handlePlaybackStateChange.bind(this));
-      TrackPlayer.addEventListener(Event.PlaybackTrackChanged, this.handleTrackChange.bind(this));
-
-      this.isInitialized = true;
-      console.log('TrackPlayer initialized successfully');
-    } catch (error) {
-      console.error('Failed to initialize TrackPlayer:', error);
-      // Fallback to basic audio without background support
-      this.isInitialized = false;
-    }
-  }
-
-  // Handle playback state changes
-  private async handlePlaybackStateChange(data: any): Promise<void> {
-    const isPlaying = data.state === TrackPlayerState.Playing;
-    const isBuffering = data.state === TrackPlayerState.Buffering;
-    
-    this.setState({
-      isPlaying,
-      isBuffering
-    });
-  }
-
-  // Handle track changes
-  private async handleTrackChange(data: any): Promise<void> {
-    if (data.nextTrack !== undefined) {
-      const trackIndex = data.nextTrack;
-      this.setState({
-        currentWordIndex: Math.floor(trackIndex / 2), // Each word has 2 tracks (English + Chinese)
-      });
-    }
+  private checkBackgroundAudioAvailability(): void {
+    this.backgroundPlaybackEnabled = BackgroundAudio.isAvailable();
+    console.log(`Background audio ${this.backgroundPlaybackEnabled ? 'available' : 'not available'}, using ${this.backgroundPlaybackEnabled ? 'BackgroundAudio' : 'Speech API'}`);
   }
 
   // Subscribe to audio state changes
@@ -112,7 +50,7 @@ class MobileAudioManager {
 
   // Enable/disable background playback
   setBackgroundPlayback(enabled: boolean) {
-    this.backgroundPlaybackEnabled = enabled && this.isInitialized;
+    this.backgroundPlaybackEnabled = enabled && BackgroundAudio.isAvailable();
   }
 
   // Set playback mode
@@ -128,9 +66,8 @@ class MobileAudioManager {
   // Stop all audio playback
   async stopAudio(): Promise<void> {
     try {
-      if (this.isInitialized && this.backgroundPlaybackEnabled) {
-        await TrackPlayer.stop();
-        await TrackPlayer.reset();
+      if (this.backgroundPlaybackEnabled) {
+        await BackgroundAudio.stopPlayback();
       }
       
       Speech.stop();
@@ -182,10 +119,23 @@ class MobileAudioManager {
         isBuffering: true
       });
 
-      console.log(`Starting playbook for group ${groupId} with ${words.length} words`);
+      console.log(`Starting playback for group ${groupId} with ${words.length} words`);
 
-      // Use Speech API as primary method (Track Player requires additional setup)
-      await this.playWithSpeechAPI(words);
+      // Set up listeners for background audio if enabled
+      if (this.backgroundPlaybackEnabled) {
+        BackgroundAudio.setAudioSettings(this.audioSettings);
+        BackgroundAudio.setPlaybackMode(this.state.playbackMode);
+        
+        // Subscribe to background audio state changes
+        BackgroundAudio.subscribe((bgState: AudioState) => {
+          this.setState(bgState);
+        });
+
+        await BackgroundAudio.startGroupPlayback(groupId);
+      } else {
+        // Fallback to Speech API
+        await this.playWithSpeechAPI(words);
+      }
 
     } catch (error) {
       console.error('Failed to start group playbook:', error);
@@ -197,48 +147,11 @@ class MobileAudioManager {
     }
   }
 
-  // Setup TrackPlayer playlist for background audio
-  private async setupTrackPlayerPlaylist(words: VocabularyWord[]): Promise<void> {
-    try {
-      const tracks: Track[] = [];
-
-      for (let i = 0; i < words.length; i++) {
-        const word = words[i];
-
-        // English track
-        tracks.push({
-          id: `${word.id}_english`,
-          url: `data:text/plain;base64,${btoa(word.english)}`, // Placeholder for TTS
-          title: word.english,
-          artist: 'English',
-          duration: 2, // Estimated duration
-        });
-
-        // Pause track (2 seconds of silence)
-        tracks.push({
-          id: `${word.id}_pause`,
-          url: 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LJeSMFl4rE8N2QQAoUXrTp66hVFApGn+DsuWoXC', // 2 seconds of silence
-          title: 'Pause',
-          artist: 'Silence',
-          duration: 2,
-        });
-
-        // Chinese track
-        tracks.push({
-          id: `${word.id}_chinese`,
-          url: `data:text/plain;base64,${btoa(word.chinese)}`, // Placeholder for TTS
-          title: word.chinese,
-          artist: 'Chinese',
-          duration: 2,
-        });
-      }
-
-      await TrackPlayer.add(tracks);
-      
-      this.setState({ isBuffering: false });
-    } catch (error) {
-      console.error('Failed to setup TrackPlayer playlist:', error);
-      throw error;
+  // Set playback mode on background audio service
+  setPlaybackMode(mode: PlaybackMode) {
+    this.setState({ playbackMode: mode });
+    if (this.backgroundPlaybackEnabled) {
+      BackgroundAudio.setPlaybackMode(mode);
     }
   }
 
@@ -328,13 +241,8 @@ class MobileAudioManager {
   // Pause/Resume playback
   async togglePlayback(): Promise<void> {
     try {
-      if (this.isInitialized && this.backgroundPlaybackEnabled) {
-        const state = await TrackPlayer.getState();
-        if (state === TrackPlayerState.Playing) {
-          await TrackPlayer.pause();
-        } else {
-          await TrackPlayer.play();
-        }
+      if (this.backgroundPlaybackEnabled) {
+        await BackgroundAudio.togglePlayback();
       } else {
         if (this.state.isPlaying) {
           await this.stopAudio();
@@ -350,8 +258,8 @@ class MobileAudioManager {
   // Skip to next word
   async skipToNext(): Promise<void> {
     try {
-      if (this.isInitialized && this.backgroundPlaybackEnabled) {
-        await TrackPlayer.skipToNext();
+      if (this.backgroundPlaybackEnabled) {
+        await BackgroundAudio.skipToNext();
       } else {
         const nextIndex = Math.min(this.state.currentWordIndex + 1, this.currentWords.length - 1);
         this.setState({ currentWordIndex: nextIndex });
@@ -364,8 +272,8 @@ class MobileAudioManager {
   // Skip to previous word
   async skipToPrevious(): Promise<void> {
     try {
-      if (this.isInitialized && this.backgroundPlaybackEnabled) {
-        await TrackPlayer.skipToPrevious();
+      if (this.backgroundPlaybackEnabled) {
+        await BackgroundAudio.skipToPrevious();
       } else {
         const prevIndex = Math.max(this.state.currentWordIndex - 1, 0);
         this.setState({ currentWordIndex: prevIndex });
@@ -378,8 +286,8 @@ class MobileAudioManager {
   // Set volume
   async setVolume(volume: number): Promise<void> {
     try {
-      if (this.isInitialized && this.backgroundPlaybackEnabled) {
-        await TrackPlayer.setVolume(volume);
+      if (this.backgroundPlaybackEnabled) {
+        await BackgroundAudio.setVolume(volume);
       }
       this.setState({ volume });
     } catch (error) {
@@ -396,8 +304,8 @@ class MobileAudioManager {
   async destroy(): Promise<void> {
     try {
       await this.stopAudio();
-      if (this.isInitialized) {
-        await TrackPlayer.destroy();
+      if (this.backgroundPlaybackEnabled) {
+        await BackgroundAudio.destroy();
       }
     } catch (error) {
       console.error('Failed to destroy audio manager:', error);
