@@ -27,7 +27,6 @@
 - [ ] Add offline/online status indicators
 
 ### Phase 4: Background Audio Implementation
-- [ ] Install react-native-track-player
 - [ ] Configure iOS background audio capabilities
 - [ ] Configure Android foreground service
 - [ ] Implement lock screen controls
@@ -53,7 +52,6 @@
 
 ### Key Libraries
 - **AsyncStorage**: Offline vocabulary storage
-- **react-native-track-player**: Background audio with lock screen controls
 - **expo-file-system**: File management for offline groups
 - **react-native-vector-icons**: UI icons
 

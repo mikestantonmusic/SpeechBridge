@@ -87,7 +87,6 @@ Once the mobile app works on your phone:
 - Enable real group downloads
 
 ### Phase 3: Add Background Audio
-- Install react-native-track-player
 - Configure lock screen controls
 - Add group looping when screen is locked
 

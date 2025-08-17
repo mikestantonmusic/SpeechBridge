@@ -2,7 +2,6 @@ import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { StatusBar } from 'expo-status-bar';
-import TrackPlayer from 'react-native-track-player';
 import HomeScreen from './src/screens/HomeScreen';
 import GroupListScreen from './src/screens/GroupListScreen';
 import VocabularyScreen from './src/screens/VocabularyScreen';
@@ -12,21 +11,12 @@ import DownloadsScreen from './src/screens/DownloadsScreen';
 const Stack = createStackNavigator();
 
 // Register the service for background audio
-TrackPlayer.registerPlaybackService(() => require('./src/services/TrackPlayerService'));
+
 
 export default function App() {
   useEffect(() => {
     // Setup background audio service when app starts
-    const setupTrackPlayer = async () => {
-      try {
-        // TrackPlayer is automatically initialized by BackgroundAudioService
-        console.log('App started - background audio service ready');
-      } catch (error) {
-        console.error('Failed to setup background audio:', error);
-      }
-    };
 
-    setupTrackPlayer();
   }, []);
 
   return (

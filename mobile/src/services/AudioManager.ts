@@ -1,8 +1,7 @@
-// Mobile Audio Manager with background playback and offline support
+// Mobile Audio Manager with offline support (Expo Go compatible)
 import * as Speech from 'expo-speech';
 import { VocabularyWord, AudioState, PlaybackMode, AudioSettings } from '../types';
 import OfflineStorage from './OfflineStorage';
-import BackgroundAudio from './BackgroundAudioService';
 
 class MobileAudioManager {
   private state: AudioState = {
@@ -18,15 +17,9 @@ class MobileAudioManager {
   private listeners: ((state: AudioState) => void)[] = [];
   private currentWords: VocabularyWord[] = [];
   private audioSettings: AudioSettings | null = null;
-  private backgroundPlaybackEnabled = false;
 
   constructor() {
-    this.checkBackgroundAudioAvailability();
-  }
-
-  private checkBackgroundAudioAvailability(): void {
-    this.backgroundPlaybackEnabled = BackgroundAudio.isAvailable();
-    console.log(`Background audio ${this.backgroundPlaybackEnabled ? 'available' : 'not available'}, using ${this.backgroundPlaybackEnabled ? 'BackgroundAudio' : 'Speech API'}`);
+    // No background audio service in Expo Go
   }
 
   // Subscribe to audio state changes
@@ -48,11 +41,6 @@ class MobileAudioManager {
     this.audioSettings = settings;
   }
 
-  // Enable/disable background playback
-  setBackgroundPlayback(enabled: boolean) {
-    this.backgroundPlaybackEnabled = enabled && BackgroundAudio.isAvailable();
-  }
-
   // Set playback mode
   setPlaybackMode(mode: PlaybackMode) {
     this.setState({ playbackMode: mode });
@@ -66,12 +54,7 @@ class MobileAudioManager {
   // Stop all audio playback
   async stopAudio(): Promise<void> {
     try {
-      if (this.backgroundPlaybackEnabled) {
-        await BackgroundAudio.stopPlayback();
-      }
-      
       Speech.stop();
-      
       this.setState({
         isPlaying: false,
         currentGroupId: null,
@@ -121,37 +104,16 @@ class MobileAudioManager {
 
       console.log(`Starting playback for group ${groupId} with ${words.length} words`);
 
-      // Set up listeners for background audio if enabled
-      if (this.backgroundPlaybackEnabled) {
-        BackgroundAudio.setAudioSettings(this.audioSettings);
-        BackgroundAudio.setPlaybackMode(this.state.playbackMode);
-        
-        // Subscribe to background audio state changes
-        BackgroundAudio.subscribe((bgState: AudioState) => {
-          this.setState(bgState);
-        });
-
-        await BackgroundAudio.startGroupPlayback(groupId);
-      } else {
-        // Fallback to Speech API
-        await this.playWithSpeechAPI(words);
-      }
+      // Only Speech API playback in Expo Go
+      await this.playWithSpeechAPI(words);
 
     } catch (error) {
-      console.error('Failed to start group playbook:', error);
+      console.error('Failed to start group playback:', error);
       this.setState({
         isPlaying: false,
         isBuffering: false
       });
       throw error;
-    }
-  }
-
-  // Set playback mode on background audio service
-  setPlaybackMode(mode: PlaybackMode) {
-    this.setState({ playbackMode: mode });
-    if (this.backgroundPlaybackEnabled) {
-      BackgroundAudio.setPlaybackMode(mode);
     }
   }
 
@@ -241,14 +203,10 @@ class MobileAudioManager {
   // Pause/Resume playback
   async togglePlayback(): Promise<void> {
     try {
-      if (this.backgroundPlaybackEnabled) {
-        await BackgroundAudio.togglePlayback();
-      } else {
-        if (this.state.isPlaying) {
-          await this.stopAudio();
-        } else if (this.state.currentGroupId) {
-          await this.startGroupPlayback(this.state.currentGroupId);
-        }
+      if (this.state.isPlaying) {
+        await this.stopAudio();
+      } else if (this.state.currentGroupId) {
+        await this.startGroupPlayback(this.state.currentGroupId);
       }
     } catch (error) {
       console.error('Failed to toggle playback:', error);
@@ -258,12 +216,8 @@ class MobileAudioManager {
   // Skip to next word
   async skipToNext(): Promise<void> {
     try {
-      if (this.backgroundPlaybackEnabled) {
-        await BackgroundAudio.skipToNext();
-      } else {
-        const nextIndex = Math.min(this.state.currentWordIndex + 1, this.currentWords.length - 1);
-        this.setState({ currentWordIndex: nextIndex });
-      }
+      const nextIndex = Math.min(this.state.currentWordIndex + 1, this.currentWords.length - 1);
+      this.setState({ currentWordIndex: nextIndex });
     } catch (error) {
       console.error('Failed to skip to next:', error);
     }
@@ -272,23 +226,16 @@ class MobileAudioManager {
   // Skip to previous word
   async skipToPrevious(): Promise<void> {
     try {
-      if (this.backgroundPlaybackEnabled) {
-        await BackgroundAudio.skipToPrevious();
-      } else {
-        const prevIndex = Math.max(this.state.currentWordIndex - 1, 0);
-        this.setState({ currentWordIndex: prevIndex });
-      }
+      const prevIndex = Math.max(this.state.currentWordIndex - 1, 0);
+      this.setState({ currentWordIndex: prevIndex });
     } catch (error) {
       console.error('Failed to skip to previous:', error);
     }
   }
 
-  // Set volume
+  // Set volume (no-op for Speech API, but update state)
   async setVolume(volume: number): Promise<void> {
     try {
-      if (this.backgroundPlaybackEnabled) {
-        await BackgroundAudio.setVolume(volume);
-      }
       this.setState({ volume });
     } catch (error) {
       console.error('Failed to set volume:', error);
@@ -304,9 +251,6 @@ class MobileAudioManager {
   async destroy(): Promise<void> {
     try {
       await this.stopAudio();
-      if (this.backgroundPlaybackEnabled) {
-        await BackgroundAudio.destroy();
-      }
     } catch (error) {
       console.error('Failed to destroy audio manager:', error);
     }

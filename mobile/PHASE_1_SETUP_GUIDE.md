@@ -97,7 +97,6 @@ Replace with your actual Replit app URL.
   "expo-file-system": "~17.0.1",
   "expo-av": "~14.0.7",
   "expo-speech": "~12.0.2",
-  "react-native-track-player": "^4.1.1"
 }
 ```
 

@@ -37,7 +37,6 @@
 - Set up AsyncStorage for offline access
 
 ### Phase 3: Add Background Audio
-- Implement react-native-track-player
 - Configure lock screen controls
 - Add group looping functionality
 

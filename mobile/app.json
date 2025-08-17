@@ -35,18 +35,7 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": [
-      "expo-av",
-      "expo-speech",
-      [
-        "react-native-track-player",
-        {
-          "android": {
-            "isModule": true
-          }
-        }
-      ]
-    ],
+    "plugins": [],
     "scheme": "chinesevocab",
     "platforms": [
       "ios",
