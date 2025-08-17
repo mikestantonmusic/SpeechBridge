@@ -1,0 +1,495 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>English to Chinese Audio Translator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'inter': ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: '#3B82F6',
+                        secondary: '#6B7280',
+                        success: '#10B981',
+                        error: '#EF4444',
+                    }
+                }
+            }
+        };
+    </script>
+</head>
+<body class="bg-gray-50 font-inter antialiased">
+    <!-- @COMPONENT: Header -->
+    <header class="bg-white shadow-sm border-b border-gray-200">
+        <div class="max-w-4xl mx-auto px-4 py-6">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
+                    <i class="fas fa-language text-white text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-semibold text-gray-900">Audio Translator</h1>
+                    <p class="text-sm text-secondary">English to Chinese (Mandarin)</p>
+                </div>
+            </div>
+        </div>
+    </header>
+    <!-- @END_COMPONENT: Header -->
+
+    <main class="max-w-4xl mx-auto px-4 py-8">
+        <!-- @COMPONENT: TranslationCard -->
+        <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+            <!-- Input Section -->
+            <div class="p-8">
+                <div class="mb-6">
+                    <label for="englishInput" class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-keyboard text-primary mr-2"></i>
+                        Enter English text
+                    </label>
+                    <div class="relative">
+                        <textarea 
+                            id="englishInput" 
+                            rows="4" 
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent resize-none transition-all duration-200"
+                            placeholder="Type your English word or phrase here..."
+                            data-bind="inputText"
+                            data-mock="true"
+                        >Hello, how are you today?</textarea>
+                        <div class="absolute bottom-3 right-3 text-xs text-gray-400" data-bind="characterCount">
+                            23 characters
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Button -->
+                <div class="flex justify-center mb-6">
+                    <button 
+                        id="translateBtn"
+                        class="inline-flex items-center px-8 py-3 bg-primary text-white font-medium rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-200 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        data-event="click:handleTranslateAndGenerate"
+                        data-implementation="Should validate input, call translation API, generate audio"
+                    >
+                        <i class="fas fa-magic mr-2"></i>
+                        Translate & Generate Audio
+                    </button>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <!-- @STATE: showResults:boolean = false -->
+            <div id="resultsSection" class="border-t border-gray-200 bg-gray-50">
+                <div class="p-8">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-6 flex items-center">
+                        <i class="fas fa-volume-up text-primary mr-2"></i>
+                        Generated Audio
+                    </h3>
+
+                    <!-- Translation Display -->
+                    <div class="grid md:grid-cols-2 gap-6 mb-8">
+                        <!-- English Section -->
+                        <div class="bg-white rounded-lg p-4 border border-gray-200">
+                            <div class="flex items-center justify-between mb-3">
+                                <h4 class="font-medium text-gray-900 flex items-center">
+                                    <img src="https://images.unsplash.com/photo-1486299267070-83823f5448dd?ixlib=rb-4.0.3&w=24&h=16&fit=crop" alt="US Flag" class="w-6 h-4 mr-2 rounded">
+                                    English
+                                </h4>
+                                <button class="text-primary hover:text-blue-600 transition-colors" data-event="click:playEnglishAudio">
+                                    <i class="fas fa-play text-sm"></i>
+                                </button>
+                            </div>
+                            <p class="text-gray-700" data-bind="englishText" data-mock="true">Hello, how are you today?</p>
+                        </div>
+
+                        <!-- Chinese Section -->
+                        <div class="bg-white rounded-lg p-4 border border-gray-200">
+                            <div class="flex items-center justify-between mb-3">
+                                <h4 class="font-medium text-gray-900 flex items-center">
+                                    <img src="https://images.unsplash.com/photo-1508247967583-7d982ea01526?ixlib=rb-4.0.3&w=24&h=16&fit=crop" alt="Chinese Flag" class="w-6 h-4 mr-2 rounded">
+                                    中文 (Mandarin)
+                                </h4>
+                                <button class="text-primary hover:text-blue-600 transition-colors" data-event="click:playChineseAudio">
+                                    <i class="fas fa-play text-sm"></i>
+                                </button>
+                            </div>
+                            <p class="text-gray-700" data-bind="chineseText" data-mock="true">你好，你今天怎么样？</p>
+                        </div>
+                    </div>
+
+                    <!-- Combined Audio Player -->
+                    <div class="bg-white rounded-lg p-6 border border-gray-200 mb-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h4 class="font-medium text-gray-900">Combined Audio</h4>
+                            <div class="flex items-center space-x-2 text-sm text-gray-500">
+                                <i class="fas fa-clock"></i>
+                                <span data-bind="audioDuration" data-mock="true">0:08</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Audio Controls -->
+                        <div class="flex items-center space-x-4">
+                            <button 
+                                id="playPauseBtn"
+                                class="w-12 h-12 bg-primary text-white rounded-full flex items-center justify-center hover:bg-blue-600 transition-colors"
+                                data-event="click:togglePlayPause"
+                                data-implementation="Should control audio playback"
+                            >
+                                <i class="fas fa-play ml-1"></i>
+                            </button>
+                            
+                            <!-- Progress Bar -->
+                            <div class="flex-1 relative">
+                                <div class="w-full h-2 bg-gray-200 rounded-full">
+                                    <div class="h-2 bg-primary rounded-full transition-all duration-300" style="width: 0%" data-bind="progressPercentage"></div>
+                                </div>
+                                <input 
+                                    type="range" 
+                                    min="0" 
+                                    max="100" 
+                                    value="0" 
+                                    class="absolute inset-0 w-full h-2 opacity-0 cursor-pointer"
+                                    data-event="input:handleSeek"
+                                >
+                            </div>
+                            
+                            <!-- Volume Control -->
+                            <div class="flex items-center space-x-2">
+                                <i class="fas fa-volume-down text-gray-400"></i>
+                                <input 
+                                    type="range" 
+                                    min="0" 
+                                    max="100" 
+                                    value="75" 
+                                    class="w-20 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+                                    data-event="input:handleVolumeChange"
+                                >
+                            </div>
+                        </div>
+
+                        <!-- Audio Timing Info -->
+                        <div class="mt-4 text-xs text-gray-500 flex justify-between">
+                            <span>English: 0:00-0:03</span>
+                            <span>Pause: 0:03-0:04</span>
+                            <span>Chinese: 0:04-0:08</span>
+                        </div>
+                    </div>
+
+                    <!-- Download Section -->
+                    <div class="bg-white rounded-lg p-6 border border-gray-200">
+                        <h4 class="font-medium text-gray-900 mb-4 flex items-center">
+                            <i class="fas fa-download text-primary mr-2"></i>
+                            Download Options
+                        </h4>
+                        
+                        <div class="grid sm:grid-cols-2 gap-4">
+                            <button 
+                                class="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                                data-event="click:downloadMP3"
+                                data-implementation="Should generate and download MP3 file"
+                            >
+                                <i class="fas fa-file-audio mr-2 text-gray-500"></i>
+                                <span class="font-medium">Download MP3</span>
+                                <span class="ml-2 text-xs text-gray-500">(Higher quality)</span>
+                            </button>
+                            
+                            <button 
+                                class="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                                data-event="click:downloadWAV"
+                                data-implementation="Should generate and download WAV file"
+                            >
+                                <i class="fas fa-file-audio mr-2 text-gray-500"></i>
+                                <span class="font-medium">Download WAV</span>
+                                <span class="ml-2 text-xs text-gray-500">(Uncompressed)</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- @END_COMPONENT: TranslationCard -->
+
+        <!-- @COMPONENT: SettingsCard -->
+        <div class="mt-8 bg-white rounded-xl shadow-lg border border-gray-200 p-8">
+            <h3 class="text-lg font-semibold text-gray-900 mb-6 flex items-center">
+                <i class="fas fa-cog text-primary mr-2"></i>
+                Audio Settings
+            </h3>
+            
+            <div class="grid md:grid-cols-3 gap-6">
+                <!-- Pause Duration -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Pause Duration</label>
+                    <select class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" data-bind="pauseDuration">
+                        <option value="0.5">0.5 seconds</option>
+                        <option value="1" selected>1 second</option>
+                        <option value="1.5">1.5 seconds</option>
+                        <option value="2">2 seconds</option>
+                    </select>
+                </div>
+                
+                <!-- Voice Speed -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Voice Speed</label>
+                    <select class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" data-bind="voiceSpeed">
+                        <option value="0.75">Slow</option>
+                        <option value="1" selected>Normal</option>
+                        <option value="1.25">Fast</option>
+                    </select>
+                </div>
+                
+                <!-- Audio Quality -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Audio Quality</label>
+                    <select class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" data-bind="audioQuality">
+                        <option value="standard">Standard</option>
+                        <option value="high" selected>High</option>
+                        <option value="premium">Premium</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <!-- @END_COMPONENT: SettingsCard -->
+
+        <!-- @COMPONENT: HistoryCard -->
+        <div class="mt-8 bg-white rounded-xl shadow-lg border border-gray-200 p-8">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-lg font-semibold text-gray-900 flex items-center">
+                    <i class="fas fa-history text-primary mr-2"></i>
+                    Recent Translations
+                </h3>
+                <button class="text-sm text-gray-500 hover:text-gray-700 transition-colors" data-event="click:clearHistory">
+                    Clear All
+                </button>
+            </div>
+            
+            <!-- @MAP: historyItems.map(item => ( -->
+            <div class="space-y-3">
+                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer" data-event="click:loadHistoryItem">
+                    <div class="flex-1">
+                        <p class="font-medium text-gray-900" data-mock="true">Hello, how are you today?</p>
+                        <p class="text-sm text-gray-500" data-mock="true">你好，你今天怎么样？</p>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-xs text-gray-400" data-mock="true">2 mins ago</span>
+                        <button class="text-primary hover:text-blue-600 transition-colors" data-event="click:playHistoryAudio">
+                            <i class="fas fa-play text-sm"></i>
+                        </button>
+                        <button class="text-gray-400 hover:text-gray-600 transition-colors" data-event="click:downloadHistoryAudio">
+                            <i class="fas fa-download text-sm"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer" data-event="click:loadHistoryItem">
+                    <div class="flex-1">
+                        <p class="font-medium text-gray-900" data-mock="true">Good morning</p>
+                        <p class="text-sm text-gray-500" data-mock="true">早上好</p>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-xs text-gray-400" data-mock="true">5 mins ago</span>
+                        <button class="text-primary hover:text-blue-600 transition-colors" data-event="click:playHistoryAudio">
+                            <i class="fas fa-play text-sm"></i>
+                        </button>
+                        <button class="text-gray-400 hover:text-gray-600 transition-colors" data-event="click:downloadHistoryAudio">
+                            <i class="fas fa-download text-sm"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer" data-event="click:loadHistoryItem">
+                    <div class="flex-1">
+                        <p class="font-medium text-gray-900" data-mock="true">Thank you very much</p>
+                        <p class="text-sm text-gray-500" data-mock="true">非常感谢</p>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-xs text-gray-400" data-mock="true">10 mins ago</span>
+                        <button class="text-primary hover:text-blue-600 transition-colors" data-event="click:playHistoryAudio">
+                            <i class="fas fa-play text-sm"></i>
+                        </button>
+                        <button class="text-gray-400 hover:text-gray-600 transition-colors" data-event="click:downloadHistoryAudio">
+                            <i class="fas fa-download text-sm"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <!-- @END_MAP )) -->
+        </div>
+        <!-- @END_COMPONENT: HistoryCard -->
+    </main>
+
+    <!-- @COMPONENT: LoadingOverlay -->
+    <!-- @STATE: isLoading:boolean = false -->
+    <div id="loadingOverlay" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg p-8 max-w-sm mx-4 text-center">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">Processing...</h3>
+            <p class="text-gray-500 text-sm" data-bind="loadingMessage" data-mock="true">Translating and generating audio</p>
+        </div>
+    </div>
+    <!-- @END_COMPONENT: LoadingOverlay -->
+
+    <!-- @COMPONENT: ErrorToast -->
+    <!-- @STATE: showError:boolean = false -->
+    <div id="errorToast" class="fixed top-4 right-4 bg-error text-white px-6 py-4 rounded-lg shadow-lg z-50 hidden">
+        <div class="flex items-center">
+            <i class="fas fa-exclamation-triangle mr-2"></i>
+            <span data-bind="errorMessage" data-mock="true">Translation failed. Please try again.</span>
+            <button class="ml-4 text-white hover:text-gray-200" data-event="click:dismissError">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </div>
+    <!-- @END_COMPONENT: ErrorToast -->
+
+    <!-- @COMPONENT: SuccessToast -->
+    <!-- @STATE: showSuccess:boolean = false -->
+    <div id="successToast" class="fixed top-4 right-4 bg-success text-white px-6 py-4 rounded-lg shadow-lg z-50 hidden">
+        <div class="flex items-center">
+            <i class="fas fa-check-circle mr-2"></i>
+            <span data-bind="successMessage" data-mock="true">Audio generated successfully!</span>
+            <button class="ml-4 text-white hover:text-gray-200" data-event="click:dismissSuccess">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </div>
+    <!-- @END_COMPONENT: SuccessToast -->
+
+    <script>
+        // TODO: Implement translation API integration (Google Translate or similar)
+        // TODO: Implement text-to-speech generation for both languages
+        // TODO: Implement audio concatenation with configurable pause
+        // TODO: Implement file download functionality
+        // TODO: Add proper error handling and validation
+        // TODO: Implement local storage for history and settings
+        
+        (function() {
+            // Demo interaction handlers - replace with actual implementation
+            const translateBtn = document.getElementById('translateBtn');
+            const resultsSection = document.getElementById('resultsSection');
+            const playPauseBtn = document.getElementById('playPauseBtn');
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            
+            // Simulate translation and audio generation
+            translateBtn?.addEventListener('click', function() {
+                const input = document.getElementById('englishInput').value.trim();
+                if (!input) {
+                    showError('Please enter some text to translate');
+                    return;
+                }
+                
+                showLoading('Translating and generating audio...');
+                
+                // Simulate API call delay
+                setTimeout(() => {
+                    hideLoading();
+                    resultsSection.classList.remove('hidden');
+                    showSuccess('Audio generated successfully!');
+                }, 2000);
+            });
+            
+            // Simulate audio playback
+            playPauseBtn?.addEventListener('click', function() {
+                const icon = this.querySelector('i');
+                if (icon.classList.contains('fa-play')) {
+                    icon.classList.remove('fa-play');
+                    icon.classList.add('fa-pause');
+                    // Simulate audio progress
+                    simulateAudioProgress();
+                } else {
+                    icon.classList.remove('fa-pause');
+                    icon.classList.add('fa-play');
+                }
+            });
+            
+            function simulateAudioProgress() {
+                const progressBar = document.querySelector('[data-bind="progressPercentage"]');
+                let progress = 0;
+                const interval = setInterval(() => {
+                    progress += 2;
+                    if (progressBar) {
+                        progressBar.style.width = progress + '%';
+                    }
+                    if (progress >= 100) {
+                        clearInterval(interval);
+                        playPauseBtn.querySelector('i').classList.remove('fa-pause');
+                        playPauseBtn.querySelector('i').classList.add('fa-play');
+                        if (progressBar) {
+                            progressBar.style.width = '0%';
+                        }
+                    }
+                }, 100);
+            }
+            
+            function showLoading(message) {
+                const overlay = document.getElementById('loadingOverlay');
+                const messageEl = overlay?.querySelector('[data-bind="loadingMessage"]');
+                if (messageEl) messageEl.textContent = message;
+                overlay?.classList.remove('hidden');
+            }
+            
+            function hideLoading() {
+                document.getElementById('loadingOverlay')?.classList.add('hidden');
+            }
+            
+            function showError(message) {
+                const toast = document.getElementById('errorToast');
+                const messageEl = toast?.querySelector('[data-bind="errorMessage"]');
+                if (messageEl) messageEl.textContent = message;
+                toast?.classList.remove('hidden');
+                setTimeout(() => toast?.classList.add('hidden'), 5000);
+            }
+            
+            function showSuccess(message) {
+                const toast = document.getElementById('successToast');
+                const messageEl = toast?.querySelector('[data-bind="successMessage"]');
+                if (messageEl) messageEl.textContent = message;
+                toast?.classList.remove('hidden');
+                setTimeout(() => toast?.classList.add('hidden'), 3000);
+            }
+            
+            // Toast dismiss handlers
+            document.addEventListener('click', function(e) {
+                if (e.target.matches('[data-event="click:dismissError"]')) {
+                    document.getElementById('errorToast')?.classList.add('hidden');
+                }
+                if (e.target.matches('[data-event="click:dismissSuccess"]')) {
+                    document.getElementById('successToast')?.classList.add('hidden');
+                }
+            });
+        })();
+    </script>
+
+    <style>
+        /* Custom slider styles */
+        .slider::-webkit-slider-thumb {
+            appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #3B82F6;
+            cursor: pointer;
+            border: 2px solid #ffffff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .slider::-moz-range-thumb {
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #3B82F6;
+            cursor: pointer;
+            border: 2px solid #ffffff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        /* Hide default input range track */
+        input[type="range"] {
+            background: transparent;
+        }
+    </style>
+</body>
+</html>
