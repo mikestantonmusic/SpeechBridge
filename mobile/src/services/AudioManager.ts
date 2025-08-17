@@ -117,50 +117,120 @@ class MobileAudioManager {
     }
   }
 
-  // Fallback playback using Speech API
-  private async playWithSpeechAPI(words: VocabularyWord[]): Promise<void> {
-    try {
-      const pauseDuration = this.audioSettings?.pauseDuration || 2000;
-
+// Fallback playback using Speech API with web app pattern matching
+private async playWithSpeechAPI(words: VocabularyWord[]): Promise<void> {
+  try {
+    // Continuous loop until user stops (matching web app behavior)
+    while (this.state.isPlaying && this.state.playbackMode === 'loop') {
+      console.log('Starting new loop cycle with', words.length, 'words');
+      
       for (let i = 0; i < words.length && this.state.isPlaying; i++) {
         const word = words[i];
-
+        
         this.setState({
           currentWordIndex: i,
-          currentPhase: "english",
           isBuffering: false
         });
 
-        // Speak English word
-        await this.speakText(word.english, 'en');
+        // Play word with random pattern (matching web app)
+        await this.playWordWithRandomPattern(word);
+
+        if (!this.state.isPlaying) break;
+
+        // Pause between words (2 seconds like web app)
+        await this.sleep(3000);
+      }
+    }
+
+    // Handle non-loop modes
+    if (this.state.playbackMode !== 'loop') {
+      for (let i = 0; i < words.length && this.state.isPlaying; i++) {
+        const word = words[i];
         
-        if (!this.state.isPlaying) break;
+        this.setState({
+          currentWordIndex: i,
+          isBuffering: false
+        });
 
-        // Pause
-        this.setState({ currentPhase: "pause" });
-        await this.sleep(pauseDuration);
-
-        if (!this.state.isPlaying) break;
-
-        // Speak Chinese word
-        this.setState({ currentPhase: "chinese" });
-        await this.speakText(word.chinese, 'zh');
+        await this.playWordWithRandomPattern(word);
 
         if (!this.state.isPlaying) break;
-
-        // Brief pause between words
-        await this.sleep(500);
+        await this.sleep(3000);
       }
 
-      // Handle playback completion based on mode
+      // Handle completion for non-loop modes
       if (this.state.isPlaying) {
         await this.handlePlaybackCompletion();
       }
-
-    } catch (error) {
-      console.error('Speech API playback failed:', error);
-      this.setState({ isPlaying: false });
     }
+
+  } catch (error) {
+    console.error('Speech API playback failed:', error);
+    this.setState({ isPlaying: false });
+  }
+}
+
+  // Play a single word with random pattern (matching web app behavior)
+  private async playWordWithRandomPattern(word: VocabularyWord): Promise<void> {
+    if (!this.audioSettings) return;
+
+    // Randomly choose pattern for each word: 50% chance for each (matching web app)
+    const useEnglishFirst = Math.random() < 0.5;
+    console.log('Playing word:', word.english, '/', word.chinese, `(${word.pinyin})`, 
+              '- Pattern:', useEnglishFirst ? 'English → Chinese → Chinese' : 'Chinese → Chinese → English');
+
+    if (useEnglishFirst) {
+      // Pattern: English → Chinese → Chinese (matching web app)
+      await this.speakWithPhase(word.english, 'en', "english");
+      if (!this.state.isPlaying) return;
+      
+      await this.pauseWithPhase();
+      if (!this.state.isPlaying) return;
+      
+      await this.speakWithPhase(word.chinese, 'zh', "chinese");
+      if (!this.state.isPlaying) return;
+      
+      await this.pauseWithPhase();
+      if (!this.state.isPlaying) return;
+      
+      await this.speakWithPhase(word.chinese, 'zh', "chinese2");
+    } else {
+      // Pattern: Chinese → Chinese → English (matching web app)
+      await this.speakWithPhase(word.chinese, 'zh', "chinese");
+      if (!this.state.isPlaying) return;
+      
+      await this.pauseWithPhase();
+      if (!this.state.isPlaying) return;
+      
+      await this.speakWithPhase(word.chinese, 'zh', "chinese2");
+      if (!this.state.isPlaying) return;
+      
+      await this.pauseWithPhase();
+      if (!this.state.isPlaying) return;
+      
+      await this.speakWithPhase(word.english, 'en', "english");
+    }
+  }
+
+  // Speak text with phase update (matching web app)
+  private async speakWithPhase(text: string, language: string, phase: AudioState['currentPhase']): Promise<void> {
+    if (!this.audioSettings) return;
+    
+    this.setState({ currentPhase: phase });
+    
+    try {
+      await this.speakText(text, language);
+    } catch (error) {
+      console.error(`Speech error for ${phase}:`, error);
+    }
+  }
+
+  // Pause with phase update (matching web app)
+  private async pauseWithPhase(): Promise<void> {
+    if (!this.audioSettings) return;
+    
+    this.setState({ currentPhase: "pause" });
+    await this.sleep(this.audioSettings.pauseDuration * 1500);
   }
 
   // Speak text using Speech API
@@ -178,23 +248,24 @@ class MobileAudioManager {
     });
   }
 
-  // Handle playback completion
+  // Handle playback completion (matching web app behavior)
   private async handlePlaybackCompletion(): Promise<void> {
     switch (this.state.playbackMode) {
       case "loop":
-        // Restart the same group
-        if (this.state.currentGroupId) {
-          await this.startGroupPlayback(this.state.currentGroupId);
-        }
+        // Loop mode is handled in the main playback loop
+        // This should not be reached for loop mode
+        console.log('Loop mode completion - should not reach here');
         break;
 
       case "sequential":
-        // Move to next group (implement based on your needs)
+        // Move to next group (could be implemented with group list)
+        console.log('Sequential playback completed');
         this.setState({ isPlaying: false });
         break;
 
       case "review":
-        // Play only learned groups (implement based on your needs)
+        // Play only learned groups (could be implemented with learned groups)
+        console.log('Review playback completed');
         this.setState({ isPlaying: false });
         break;
     }
