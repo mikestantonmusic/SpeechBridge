@@ -1,35 +1,31 @@
-// Type definitions for the mobile app
+import { WordGroup as BaseWordGroup, VocabularyWord as BaseVocabularyWord } from '../data/vocabulary';
 
-export interface VocabularyWord {
-  id: string;
-  english: string;
-  chinese: string;
-  pinyin: string;
-  groupId: string;
+// Extend VocabularyWord if you need extra fields for the app
+export interface VocabularyWord extends BaseVocabularyWord {
   order: number;
 }
 
-export interface WordGroup {
-  id: string;
-  name: string;
-  description: string;
-  hsklevel: number;
+// Extend WordGroup with app-specific fields
+export interface WordGroup extends BaseWordGroup {
   groupNumber: number;
-  isLearned: number;
+  isLearned: boolean;
   order: number;
-  wordCount?: number;
   isDownloaded?: boolean;
-  downloadedAt?: Date;
+  downloadedAt?: Date | string;
 }
+
+// The rest of your types remain unchanged
 
 export interface AudioSettings {
   id: string;
-  userId: string;
+  userId?: string;
   pauseDuration: number;
   voiceSpeed: number;
-  voiceQuality: string;
-  autoPlay: boolean;
-  repeatCount: number;
+  voiceQuality?: string;
+  audioQuality?: string;
+  autoPlay?: boolean;
+  repeatCount?: number;
+  languageOrder?: string;
 }
 
 export type PlaybackMode = "loop" | "sequential" | "review";

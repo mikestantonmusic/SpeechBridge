@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { AppSettings, AudioSettings } from '../types';
+import VocabularyService from '../services/VocabularyService';
 import OfflineStorage from '../services/OfflineStorage';
 import AudioManager from '../services/AudioManager';
 
@@ -23,6 +24,19 @@ export default function SettingsScreen() {
   });
 
   const [audioSettings, setAudioSettings] = useState<AudioSettings | null>(null);
+
+  useEffect(() => {
+    loadAudioSettings();
+  }, []);
+
+  const loadAudioSettings = async () => {
+    try {
+      const settings = await VocabularyService.getAudioSettings();
+      setAudioSettings(settings);
+    } catch (error) {
+      console.error('Failed to load audio settings:', error);
+    }
+  };
   const [storageStats, setStorageStats] = useState({
     totalGroups: 0,
     totalWords: 0,
@@ -59,7 +73,7 @@ export default function SettingsScreen() {
       setAppSettings(newSettings);
 
       // Apply background audio setting
-      AudioManager.setBackgroundPlayback(newSettings.backgroundAudioEnabled);
+      //AudioManager.setBackgroundPlayback(newSettings.backgroundAudioEnabled);
 
     } catch (error) {
       console.error('Failed to save settings:', error);

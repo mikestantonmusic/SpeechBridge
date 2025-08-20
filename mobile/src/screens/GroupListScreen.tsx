@@ -13,7 +13,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
 import { WordGroup, DownloadProgress } from '../types';
-import VocabularyAPI from '../services/VocabularyAPI';
+import VocabularyService from '../services/VocabularyService';
 import OfflineStorage from '../services/OfflineStorage';
 import { APP_CONFIG } from '../utils/constants';
 
@@ -81,29 +81,21 @@ export default function GroupListScreen({ navigation }: Props) {
     try {
       setLoading(true);
 
-      // Check online status
-      const online = await VocabularyAPI.checkConnection();
-      setIsOnline(online);
+      // Always online with embedded data
+      setIsOnline(true);
 
-      let allGroups: WordGroup[] = [];
+      // Load from embedded vocabulary service
+      const allGroups = await VocabularyService.getWordGroups();
 
-      if (online) {
-        // Load from API
-        allGroups = await VocabularyAPI.getWordGroups();
-      } else {
-        // Load only downloaded groups when offline
-        allGroups = await OfflineStorage.getDownloadedGroups();
-      }
-
-      // Get download status for each group
+      // Get download status for each group (all are "downloaded" since embedded)
       const downloadedGroups = await OfflineStorage.getDownloadedGroups();
       const downloadedIds = new Set(downloadedGroups.map(g => g.id));
 
       const groupsWithStatus: GroupWithDownloadStatus[] = allGroups.map(group => ({
         ...group,
-        isDownloaded: downloadedIds.has(group.id),
+        isDownloaded: true, // All groups are embedded/downloaded
         isDownloading: downloadingGroups.has(group.id),
-        downloadProgress: 0
+        downloadProgress: 100 // All groups are fully "downloaded"
       }));
 
       // Sort by HSK level and group number
@@ -134,14 +126,7 @@ export default function GroupListScreen({ navigation }: Props) {
   }, []);
 
   const handleGroupPress = (group: GroupWithDownloadStatus) => {
-    if (!group.isDownloaded && !isOnline) {
-      Alert.alert(
-        'Offline Mode',
-        'This group is not downloaded yet. Please connect to the internet to download it first.'
-      );
-      return;
-    }
-
+    // All groups are embedded and available
     navigation.navigate('Vocabulary', {
       groupId: group.id,
       groupName: group.name,
@@ -150,12 +135,8 @@ export default function GroupListScreen({ navigation }: Props) {
   };
 
   const handleDownloadGroup = async (group: GroupWithDownloadStatus) => {
-    if (!isOnline) {
-      Alert.alert('No Connection', 'Please connect to the internet to download groups.');
-      return;
-    }
-
-    if (group.isDownloading) {
+    // All groups are already embedded, but we can simulate download for UI consistency
+    if (group.isDownloaded) {
       return;
     }
 
@@ -165,7 +146,17 @@ export default function GroupListScreen({ navigation }: Props) {
         g.id === group.id ? { ...g, isDownloading: true, downloadProgress: 0 } : g
       ));
 
-      await OfflineStorage.downloadGroup(group);
+      // Simulate quick download since data is embedded
+      setTimeout(() => {
+        setGroups(prev => prev.map(g => 
+          g.id === group.id ? { ...g, isDownloading: false, isDownloaded: true, downloadProgress: 100 } : g
+        ));
+        setDownloadingGroups(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(group.id);
+          return newSet;
+        });
+      }, 1000);
 
     } catch (error) {
       console.error('Download failed:', error);

@@ -1,136 +1,110 @@
-import { useState, useEffect, useMemo } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
 import { VocabularyGroupCard } from "@/components/vocabulary-group-card";
 import { SettingsCard } from "@/components/settings-card";
 import { PlaybackModeSelector } from "@/components/playback-mode-selector";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import VocabularyService from "@/services/VocabularyService";
 import { AudioManager } from "@/lib/audio-manager";
 import { Languages, BookOpen } from "lucide-react";
-import type { AudioSettings, WordGroup, VocabularyWord } from "@shared/schema";
+import type { VocabularyWord, WordGroup } from "@/data/vocabulary";
 
 export default function Home() {
-  const [audioSettings, setAudioSettings] = useState<AudioSettings>({
-    id: "",
+  const [audioSettings, setAudioSettings] = useState({
     pauseDuration: 1.0,
     voiceSpeed: 1.0,
     audioQuality: "high",
     languageOrder: "english-first",
   });
 
-  const [groupWords, setGroupWords] = useState<Record<string, VocabularyWord[]>>({});
+  const [groupWords, setGroupWords] = useState<Record<string, any[]>>({});
+  const [wordGroups, setWordGroups] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   
   const { toast } = useToast();
 
-  // Fetch audio settings
-  const { data: settingsData } = useQuery<AudioSettings>({
-    queryKey: ["/api/audio-settings"],
-  });
-
-  // Fetch word groups
-  const { data: wordGroupsData = [], isLoading: groupsLoading } = useQuery<WordGroup[]>({
-    queryKey: ["/api/word-groups"],
-  });
-
-  // Use the server-provided ordering (no client-side re-sorting)
-  const wordGroups = useMemo(() => {
-    return wordGroupsData; // Server already sorts these properly
-  }, [wordGroupsData]);
-
+  // Load data on component mount
   useEffect(() => {
-    if (settingsData) {
-      setAudioSettings(settingsData);
-    }
-  }, [settingsData]);
-
-  // Fetch words for each group and initialize AudioManager
-  useEffect(() => {
-    const fetchWordsForGroups = async () => {
-      if (wordGroups.length === 0) return;
-      
-      const wordsPromises = wordGroups.map(async (group) => {
-        try {
-          const response = await apiRequest("GET", `/api/word-groups/${group.id}/words`);
-          const words = await response.json();
-          return { groupId: group.id, words };
-        } catch (error) {
-          console.error(`Failed to fetch words for group ${group.id}:`, error);
-          return { groupId: group.id, words: [] };
+    const loadData = async () => {
+      try {
+        setIsLoading(true);
+        
+        // Load audio settings from client service
+        const settings = await VocabularyService.getAudioSettings();
+        setAudioSettings(settings);
+        
+        // Load word groups from client service
+        const groups = await VocabularyService.getAllWordGroups();
+        setWordGroups(groups as any);
+        
+        // Load words for each group
+        const wordsMap: Record<string, any[]> = {};
+        for (const group of groups) {
+          const words = await VocabularyService.getGroupWords(group.id);
+          wordsMap[group.id] = words;
         }
-      });
-
-      const results = await Promise.all(wordsPromises);
-      const wordsMap: Record<string, VocabularyWord[]> = {};
-      results.forEach(({ groupId, words }) => {
-        wordsMap[groupId] = words;
-      });
-      setGroupWords(wordsMap);
-      
-      // Initialize AudioManager with data
-      if (audioSettings) {
-        AudioManager.initializeData(wordGroups, wordsMap, audioSettings);
+        setGroupWords(wordsMap as any);
+        
+        // Initialize AudioManager with data (cast to match expected types)
+        AudioManager.initializeData(groups as any, wordsMap as any, settings as any);
+        
+      } catch (error) {
+        console.error('Failed to load data:', error);
+        toast({
+          title: "Loading Failed",
+          description: "Failed to load vocabulary data.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    fetchWordsForGroups();
-  }, [wordGroups, audioSettings]);
+    loadData();
+  }, [toast]);
 
-  // Update audio settings mutation
-  const updateSettingsMutation = useMutation({
-    mutationFn: async (settings: Partial<AudioSettings>) => {
-      const response = await apiRequest("POST", "/api/audio-settings", settings);
-      return response.json();
-    },
-    onSuccess: (data) => {
-      setAudioSettings(data);
-      queryClient.invalidateQueries({ queryKey: ["/api/audio-settings"] });
+  // Update audio settings using client service
+  const handleSettingsChange = async (newSettings: typeof audioSettings) => {
+    try {
+      await VocabularyService.updateAudioSettings(newSettings);
+      setAudioSettings(newSettings);
       toast({
         title: "Settings Updated",
         description: "Audio settings have been saved.",
       });
-    },
-    onError: (error) => {
+    } catch (error) {
       toast({
         title: "Settings Update Failed",
-        description: error.message,
+        description: "Failed to save audio settings.",
         variant: "destructive",
       });
-    },
-  });
+    }
+  };
 
-  // Toggle learned status mutation with manual state update
-  const toggleLearnedMutation = useMutation({
-    mutationFn: async ({ groupId, isLearned }: { groupId: string; isLearned: boolean }) => {
-      const response = await apiRequest("PATCH", `/api/word-groups/${groupId}`, { isLearned });
-      return response.json();
-    },
-    onSuccess: (updatedGroup) => {
-      // Manually update the cache with the returned data, preserving order
-      const currentGroups = queryClient.getQueryData<WordGroup[]>(["/api/word-groups"]);
-      if (currentGroups) {
-        const updatedGroups = currentGroups.map(group => 
-          group.id === updatedGroup.id ? updatedGroup : group
-        );
-        // Set the data directly without invalidating to prevent reordering
-        queryClient.setQueryData(["/api/word-groups"], updatedGroups);
-      }
-    },
-    onError: (error) => {
+  // Toggle learned status using client service
+  const handleToggleLearned = async (groupId: string, isLearned: boolean) => {
+    try {
+      await VocabularyService.updateGroupLearnedStatus(groupId, isLearned);
+      
+      // Update local state
+      setWordGroups(prevGroups => 
+        prevGroups.map(group => 
+          group.id === groupId 
+            ? { ...group, isLearned: isLearned ? 1 : 0 } as any 
+            : group
+        )
+      );
+      
+      toast({
+        title: "Status Updated",
+        description: `Group marked as ${isLearned ? 'learned' : 'not learned'}.`,
+      });
+    } catch (error) {
       toast({
         title: "Update Failed",
         description: "Learning status could not be saved.",
         variant: "destructive",
       });
-    },
-  });
-
-  const handleSettingsChange = (newSettings: AudioSettings) => {
-    const { id, ...settingsToUpdate } = newSettings;
-    updateSettingsMutation.mutate(settingsToUpdate);
-  };
-
-  const handleToggleLearned = (groupId: string, isLearned: boolean) => {
-    toggleLearnedMutation.mutate({ groupId, isLearned });
+    }
   };
 
   const learnedCount = wordGroups.filter(group => group.isLearned === 1).length;
@@ -238,7 +212,7 @@ export default function Home() {
             </div>
           </div>
 
-          {groupsLoading ? (
+          {isLoading ? (
             <div className="grid grid-cols-1 gap-6">
               {[...Array(5)].map((_, i) => (
                 <div key={i} className="h-48 bg-white rounded-lg border animate-pulse" />
@@ -249,9 +223,9 @@ export default function Home() {
               {wordGroups.map((group) => (
                 <VocabularyGroupCard
                   key={group.id}
-                  group={group}
-                  words={groupWords[group.id] || []}
-                  audioSettings={audioSettings}
+                  group={group as any}
+                  words={(groupWords[group.id] || []) as any}
+                  audioSettings={audioSettings as any}
                   onToggleLearned={handleToggleLearned}
                 />
               ))}
@@ -259,7 +233,7 @@ export default function Home() {
           )}
         </div>
 
-        {wordGroups.length === 0 && !groupsLoading && (
+        {wordGroups.length === 0 && !isLoading && (
           <div className="text-center py-12">
             <BookOpen className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-600">No vocabulary groups available</p>

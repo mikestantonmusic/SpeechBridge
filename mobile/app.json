@@ -17,7 +17,9 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "UIBackgroundModes": ["audio"],
+        "UIBackgroundModes": [
+          "audio"
+        ],
         "NSMicrophoneUsageDescription": "This app uses audio for pronunciation practice."
       }
     },
@@ -30,7 +32,8 @@
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.WAKE_LOCK",
         "android.permission.MODIFY_AUDIO_SETTINGS"
-      ]
+      ],
+      "package": "com.bosmike63.chinesevocabularylearning"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -41,6 +44,11 @@
       "ios",
       "android",
       "web"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "4c18fa78-3707-47b0-9fa9-ff91dd4a78cf"
+      }
+    }
   }
 }

@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
-import VocabularyAPI from '../services/VocabularyAPI';
+import VocabularyService from '../services/VocabularyService';
 import OfflineStorage from '../services/OfflineStorage';
 
 type RootStackParamList = {
@@ -52,28 +52,18 @@ export default function HomeScreen({ navigation }: Props) {
     try {
       setLoading(true);
 
-      // Check if online
-      const isOnline = await VocabularyAPI.checkConnection();
+      // Get vocabulary stats from embedded service
+      const vocabStats = await VocabularyService.getStats();
       
-      // Get vocabulary stats
-      let vocabStats = { totalWords: 0, totalGroups: 0, hskLevels: 0, groupsByLevel: {} };
-      if (isOnline) {
-        try {
-          vocabStats = await VocabularyAPI.getVocabularyStats();
-        } catch (error) {
-          console.log('Failed to fetch online stats, using defaults');
-        }
-      }
-
       // Get offline storage stats
       const storageStats = await OfflineStorage.getStorageStats();
 
       setStats({
-        totalGroups: vocabStats.totalGroups || 362,
-        totalWords: vocabStats.totalWords || 3610,
-        downloadedGroups: storageStats.totalGroups,
+        totalGroups: vocabStats.totalGroups,
+        totalWords: vocabStats.totalWords,
+        downloadedGroups: vocabStats.downloadedGroups,
         estimatedSizeMB: storageStats.estimatedSizeMB,
-        isOnline
+        isOnline: true // Always online with embedded data
       });
 
     } catch (error) {

@@ -12,7 +12,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
 import { VocabularyWord, AudioState, PlaybackMode } from '../types';
-import VocabularyAPI from '../services/VocabularyAPI';
+import VocabularyService from '../services/VocabularyService';
 import OfflineStorage from '../services/OfflineStorage';
 import AudioManager from '../services/AudioManager';
 import { APP_CONFIG } from '../utils/constants';
@@ -85,23 +85,11 @@ export default function VocabularyScreen({ navigation, route }: Props) {
     try {
       setLoading(true);
 
-      // Check if online
-      const online = await VocabularyAPI.checkConnection();
-      setIsOnline(online);
+      // Always online with embedded data
+      setIsOnline(true);
 
-      let vocabularyWords: VocabularyWord[] = [];
-
-      // Try to load from offline storage first
-      const offlineWords = await OfflineStorage.getGroupWords(groupId);
-      
-      if (offlineWords.length > 0) {
-        vocabularyWords = offlineWords;
-      } else if (online) {
-        // Load from API if not available offline
-        vocabularyWords = await VocabularyAPI.getGroupWords(groupId);
-      } else {
-        throw new Error('Group not available offline and no internet connection');
-      }
+      // Load from embedded vocabulary service
+      const vocabularyWords = await VocabularyService.getGroupWords(groupId);
 
       if (vocabularyWords.length === 0) {
         throw new Error('No words found for this group');
@@ -114,10 +102,17 @@ export default function VocabularyScreen({ navigation, route }: Props) {
 
       // Get audio settings and initialize AudioManager
       try {
-        const audioSettings = await VocabularyAPI.getAudioSettings();
+        const audioSettings = await VocabularyService.getAudioSettings();
         AudioManager.setAudioSettings(audioSettings);
       } catch (error) {
         console.log('Using default audio settings');
+        AudioManager.setAudioSettings({
+          id: "mobile-client-settings",
+          pauseDuration: 1.0,
+          voiceSpeed: 1.0,
+          audioQuality: "high",
+          languageOrder: "english-first"
+        });
       }
 
     } catch (error) {
